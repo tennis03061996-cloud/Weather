@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>仕事用 気象ダッシュボード Ultimate</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="天気ダッシュ">
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <style>
+        :root { --primary: #004080; --warning: #d9534f; --accent: #ffc107; --bg: #f0f2f5; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background: var(--bg); color: #333; padding-bottom: 60px; }
+        
+        /* 💡 ヘッダーのレイアウト変更：ボタンを横に配置 */
+        header { background: var(--primary); color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        h1 { font-size: 1.1rem; margin: 0; }
+        .gps-btn { background: #fff; color: var(--primary); border: none; padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 0.85rem; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+        .gps-btn:active { transform: scale(0.95); }
+
+        /* エリア選択タブ */
+        .tabs-container { overflow-x: auto; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 48px; z-index: 999; }
+        .tabs { display: flex; width: max-content; }
+        .tab { padding: 12px 15px; cursor: pointer; white-space: nowrap; transition: 0.3s; border-right: 1px solid #eee; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+        .tab.active { background: #e7f0fa; color: var(--primary); border-bottom: 4px solid var(--primary); }
+        .area-icon { font-size: 1.2rem; }
+
+        .container { padding: 12px; max-width: 800px; margin: 0 auto; }
+        .card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        h2 { font-size: 1rem; margin-top: 0; color: var(--primary); border-left: 5px solid var(--primary); padding-left: 10px; margin-bottom: 12px; }
+
+        /* 💡 新設：現在の実況表示エリア */
+        .current-weather-box { background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); border-radius: 8px; padding: 12px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #7dd3fc; }
+        .current-temp { font-size: 1.8rem; font-weight: bold; color: #0284c7; margin: 0; }
+        .current-desc { font-size: 0.9rem; color: #0369a1; margin: 0; font-weight: bold; }
+
+        /* 天気予報カード */
+        .forecast-container { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; margin-top: 10px; }
+        .forecast-day { background: #fdfdfd; border: 1px solid #eaeaea; border-radius: 8px; padding: 12px; min-width: 100px; text-align: center; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .forecast-date { font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; color: #555; }
+        .weather-img { width: 50px; height: 50px; display: block; margin: 0 auto; }
+        .weather-text { font-size: 0.8rem; margin: 5px 0; min-height: 2.4em; display: flex; align-items: center; justify-content: center; line-height: 1.2; }
+        .temp-box { font-size: 0.9rem; margin-top: 5px; background: #f4f4f4; border-radius: 4px; padding: 4px; }
+        .temp-max { color: #d9534f; font-weight: bold; }
+        .temp-min { color: #004080; font-weight: bold; }
+
+        /* バッジ表示 */
+        .info-text { font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap; color: #444; }
+        .warning-badge { background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 10px; border-radius: 6px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; font-weight: bold; border-left: 5px solid var(--accent); }
+        .danger-badge { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 10px; border-radius: 6px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; font-weight: bold; border-left: 5px solid var(--warning); }
+        .safe-badge { background: #d4edda; color: #155724; padding: 10px; border-radius: 6px; font-weight: bold; text-align: center; }
+
+        /* 天気図 */
+        .map-container { text-align: center; background: #eee; border-radius: 8px; overflow: hidden; }
+        img.map-img { max-width: 100%; height: auto; display: block; margin: 0 auto; cursor: zoom-in; }
+        .refresh-btn { background: #6c757d; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; }
+
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .action-btn { background: var(--primary); color: white; text-align: center; padding: 12px 5px; text-decoration: none; border-radius: 8px; font-size: 0.85rem; font-weight: bold; display: block; }
+
+        .history-item { font-size: 0.85rem; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .history-time { color: #888; font-size: 0.75rem; margin-right: 8px; }
+        #loading-overlay { position: fixed; top: 60px; left: 0; right: 0; background: rgba(255,255,255,0.9); text-align: center; padding: 10px; display: none; z-index: 2000; font-size: 0.9rem; font-weight: bold; color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+        /* 💡 新設：ポップアップ（モーダル）のスタイル */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; align-items: center; justify-content: center; }
+        .modal-content { background: white; width: 85%; max-width: 400px; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative; text-align: center; }
+        .modal-close { position: absolute; top: 10px; right: 15px; font-size: 1.5rem; color: #888; cursor: pointer; font-weight: bold; }
+        .modal-title { margin-top: 0; color: var(--primary); font-size: 1.1rem; border-bottom: 2px solid #eee; padding-bottom: 8px; }
+        .gps-weather-large { font-size: 3rem; margin: 10px 0; }
+        .gps-temp-large { font-size: 2rem; font-weight: bold; color: #d9534f; margin: 0; }
+        .gps-location-text { font-size: 0.85rem; color: #666; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>ダッシュボード</h1>
+    <button class="gps-btn" onclick="fetchGPSWeather(false)">📍現在地</button>
+</header>
+
+<div id="loading-overlay">データを最新に更新中...</div>
+
+<div id="gpsModal" class="modal-overlay">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeModal()">&times;</span>
+        <h3 class="modal-title">📍 現在地の天気と気温</h3>
+        <div id="gpsLoading">GPS情報を取得しています...<br><small>(許可を求められたら「許可」を押してください)</small></div>
+        <div id="gpsResult" style="display:none;">
+            <div class="gps-weather-large" id="gpsIcon">☀️</div>
+            <p class="gps-temp-large" id="gpsTemp">--℃</p>
+            <p style="font-weight: bold; color: #444;" id="gpsDesc">晴れ</p>
+            <p class="gps-location-text">Open-Meteo APIより取得</p>
+        </div>
+    </div>
+</div>
+
+<div class="tabs-container">
+    <div class="tabs">
+        <div class="tab active" onclick="updateArea('390000', '高知', this)"><span class="area-icon">🐟</span>高知</div>
+        <div class="tab" onclick="updateArea('270000', '大阪', this)"><span class="area-icon">🐙</span>大阪</div>
+        <div class="tab" onclick="updateArea('260000', '京都', this)"><span class="area-icon">⛩️</span>京都</div>
+        <div class="tab" onclick="updateArea('280000', '兵庫', this)"><span class="area-icon">⚓</span>兵庫</div>
+        <div class="tab" onclick="updateArea('250000', '滋賀', this)"><span class="area-icon">🌊</span>滋賀</div>
+        <div class="tab" onclick="updateArea('290000', '奈良', this)"><span class="area-icon">🦌</span>奈良</div>
+        <div class="tab" onclick="updateArea('300000', '和歌山', this)"><span class="area-icon">🍊</span>和歌山</div>
+        <div class="tab" onclick="updateArea('471000', '沖縄', this)"><span class="area-icon">🌺</span>沖縄</div>
+        <div class="tab" onclick="updateArea('474000', '石垣', this)"><span class="area-icon">🐚</span>石垣</div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <h2>1. 短期天気予報・気温 (<span id="areaLabel">高知</span>)</h2>
+        
+        <div class="current-weather-box" id="currentPrefBox">
+            <div>
+                <p style="margin:0; font-size:0.8rem; color:#0369a1;">現在の実況 (Open-Meteo)</p>
+                <p class="current-desc" id="prefCurrentDesc">取得中...</p>
+            </div>
+            <p class="current-temp" id="prefCurrentTemp">--℃</p>
+        </div>
+
+        <div id="shortForecast" class="forecast-container">読込中...</div>
+    </div>
+    <div class="card">
+        <h2>★ 週間天気予報・気温</h2>
+        <div id="weeklyForecast" class="forecast-container">読込中...</div>
+    </div>
+    <div class="card">
+        <h2>2. 天気概況</h2>
+        <div id="overview" class="info-text">読込中...</div>
+    </div>
+    <div class="card">
+        <h2>3. 発表中の注意報・警報</h2>
+        <div id="alertContainer">確認中...</div>
+        <div style="margin-top: 10px; text-align: right;">
+            <a id="linkAlert" href="#" target="_blank" style="font-size: 0.85rem; color: #004080; font-weight: bold; text-decoration: underline;">→ 気象庁HPで今後の推移を確認</a>
+        </div>
+    </div>
+    <div class="card">
+        <h2>4. 気象情報の発表タイトル</h2>
+        <div id="infoContainer">確認中...</div>
+    </div>
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h2 style="margin:0; border:none; padding:0;">5. 実況天気図</h2>
+            <button class="refresh-btn" onclick="loadWeatherMap()">更新</button>
+        </div>
+        <div class="map-container" id="mapBox">
+            <p style="padding-top:80px; color: #666;">最新の画像を検索中...</p>
+        </div>
+    </div>
+    <div class="card">
+        <h2>6 & 7. 地震・津波 / 台風</h2>
+        <div class="btn-grid">
+            <a href="https://www.jma.go.jp/bosai/earthquake/" target="_blank" class="action-btn" style="background:#cc0000;">地震情報 (全国一覧)</a>
+            <a href="https://www.jma.go.jp/bosai/map.html#contents=typhoon" target="_blank" class="action-btn" style="background:#ff8c00;">台風進路予想</a>
+        </div>
+    </div>
+    <div class="card">
+        <h2>8. 24時間以内の変化履歴</h2>
+        <div id="historyBox">記録なし</div>
+    </div>
+</div>
+
+<script>
+    let currentCode = '390000';
+    let currentName = '高知';
+    let isInitialLoad = true; // 初回起動かどうかの判定用フラグ
+
+    // 💡 新設：各府県の代表地点の緯度経度データ（Open-Meteo用）
+    const prefCoordinates = {
+        "高知": {lat: 33.5597, lon: 133.5311},
+        "大阪": {lat: 34.6937, lon: 135.5023},
+        "京都": {lat: 35.0116, lon: 135.7681},
+        "兵庫": {lat: 34.6901, lon: 135.1955}, // 神戸
+        "滋賀": {lat: 35.0178, lon: 135.8546}, // 大津
+        "奈良": {lat: 34.6851, lon: 135.8048},
+        "和歌山": {lat: 34.2305, lon: 135.1706},
+        "沖縄": {lat: 26.2124, lon: 127.6809}, // 那覇
+        "石垣": {lat: 24.3448, lon: 124.1553}
+    };
+
+    // 💡 新設：Open-Meteoの天気コードを日本語と絵文字に変換する辞書
+    function decodeWMO(code) {
+        if(code === 0) return {text: "快晴", icon: "☀️"};
+        if(code === 1 || code === 2 || code === 3) return {text: "晴れ/曇り", icon: "⛅"};
+        if(code === 45 || code === 48) return {text: "霧", icon: "🌫️"};
+        if(code >= 51 && code <= 67) return {text: "雨", icon: "🌧️"};
+        if(code >= 71 && code <= 77) return {text: "雪", icon: "❄️"};
+        if(code >= 80 && code <= 82) return {text: "にわか雨", icon: "☔"};
+        if(code >= 85 && code <= 86) return {text: "雪おこし", icon: "⛄"};
+        if(code >= 95 && code <= 99) return {text: "雷雨", icon: "⛈️"};
+        return {text: "不明", icon: "❓"};
+    }
+
+    // 君が修正してくれた警報コードマップ
+    const warnMap = {
+        "02":"暴風雪警報","03":"大雨警報","04":"洪水警報","05":"暴風警報","06":"大雪警報","07":"波浪警報","08":"高潮警報",
+        "10":"大雨注意報","12":"大雪注意報","13":"風雪注意報","14":"雷注意報","15":"強風注意報","16":"波浪注意報","17":"融雪注意報","18":"洪水注意報","19":"高潮注意報","20":"濃霧注意報","21":"乾燥注意報","22":"なだれ注意報","23":"低温注意報","24":"霜注意報","25":"着氷注意報","26":"着雪注意報",
+        "32":"暴風雪特別警報","33":"大雨特別警報","35":"暴風特別警報","36":"大雪特別警報","37":"波浪特別警報","38":"高潮特別警報"
+    };
+
+    const alertIcons = {
+        "大雨":"🌧️", "洪水":"🌊", "暴風":"🌀", "強風":"💨", "大雪":"❄️", "雷":"⚡", "高潮":"🌊", "波浪":"🌊", "熱中症":"☀️", "乾燥":"🍂", "なだれ":"🗻", "濃霧":"🌫️"
+    };
+
+    // ==========================================
+    // 💡 新機能：Open-Meteoから現在の実況を取得する関数
+    // ==========================================
+    async function fetchCurrentWeather(lat, lon, targetElementId) {
+        try {
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=Asia%2FTokyo`;
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if(data && data.current_weather) {
+                const temp = data.current_weather.temperature;
+                const weatherInfo = decodeWMO(data.current_weather.weathercode);
+                
+                if (targetElementId === 'pref') {
+                    // 各府県のカード内に表示
+                    document.getElementById('prefCurrentDesc').innerText = `${weatherInfo.icon} ${weatherInfo.text}`;
+                    document.getElementById('prefCurrentTemp').innerText = `${temp}℃`;
+                } else if (targetElementId === 'gps') {
+                    // ポップアップ内に表示
+                    document.getElementById('gpsLoading').style.display = 'none';
+                    document.getElementById('gpsResult').style.display = 'block';
+                    document.getElementById('gpsIcon').innerText = weatherInfo.icon;
+                    document.getElementById('gpsTemp').innerText = `${temp}℃`;
+                    document.getElementById('gpsDesc').innerText = weatherInfo.text;
+                }
+            }
+        } catch (e) {
+            console.error("実況天気取得エラー:", e);
+            if (targetElementId === 'pref') {
+                document.getElementById('prefCurrentDesc').innerText = "取得失敗";
+            } else if (targetElementId === 'gps') {
+                document.getElementById('gpsLoading').innerHTML = "天気の取得に失敗しました。<br>通信環境を確認してください。";
+            }
+        }
+    }
+
+    // ==========================================
+    // 💡 新機能：GPSで現在地を取得してポップアップ表示
+    // ==========================================
+    function fetchGPSWeather(isAutoLoad) {
+        const modal = document.getElementById('gpsModal');
+        const loadingBox = document.getElementById('gpsLoading');
+        const resultBox = document.getElementById('gpsResult');
+
+        // 自動ロード時は、Geolocation APIをサポートしていないブラウザなら何もしない
+        if (isAutoLoad && !navigator.geolocation) return;
+        
+        // モーダルを表示して初期化
+        modal.style.display = 'flex';
+        loadingBox.style.display = 'block';
+        loadingBox.innerHTML = "GPS情報を取得しています...<br><small>(許可を求められたら「許可」を押してください)</small>";
+        resultBox.style.display = 'none';
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    fetchCurrentWeather(lat, lon, 'gps');
+                },
+                (error) => {
+                    // GPSが拒否されたり取得できなかった場合
+                    console.warn("GPS取得エラー", error);
+                    if (!isAutoLoad) {
+                        loadingBox.innerHTML = "現在地の取得が許可されていないか、<br>電波が届いていません。";
+                    } else {
+                        // 自動ロード時で失敗した場合は、ポップアップをそっと閉じる
+                        closeModal();
+                    }
+                },
+                { timeout: 10000 } // 10秒でタイムアウト
+            );
+        } else {
+            loadingBox.innerHTML = "お使いのブラウザは<br>位置情報に対応していません。";
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('gpsModal').style.display = 'none';
+    }
+
+
+    // 既存の天気図取得機能
+    async function loadWeatherMap() {
+        const box = document.getElementById('mapBox');
+        try {
+            const res = await fetch('https://www.jma.go.jp/bosai/weather_map/data/list.json');
+            const data = await res.json();
+            if (data && data.near && data.near.now && data.near.now.length > 0) {
+                const latestFile = data.near.now[data.near.now.length - 1];
+                box.innerHTML = `<img src="https://www.jma.go.jp/bosai/weather_map/data/png/${latestFile}" class="map-img" onclick="window.open(this.src, '_blank')">`;
+            }
+        } catch (e) {
+            box.innerHTML = `<p style="padding:20px;">天気図の取得に失敗しました</p>`;
+        }
+    }
+
+    // 気象庁のデータパズル（前回直した安全機能入り）
+    function renderForecasts(fData) {
+        let dailyData = {}; 
+        try {
+            if (fData[0] && fData[0].timeSeries && fData[0].timeSeries[0]) {
+                const shortWeather = fData[0].timeSeries[0];
+                shortWeather.timeDefines.forEach((time, index) => {
+                    const dateStr = time.split('T')[0];
+                    dailyData[dateStr] = {
+                        dateText: `${new Date(time).getMonth()+1}/${new Date(time).getDate()}`,
+                        weatherCode: shortWeather.areas[0].weatherCodes[index],
+                        weatherText: shortWeather.areas[0].weathers ? shortWeather.areas[0].weathers[index] : "ー",
+                        minTemp: "-", maxTemp: "-"
+                    };
+                });
+            }
+            if (fData[0] && fData[0].timeSeries && fData[0].timeSeries.length > 2) {
+                const shortTemps = fData[0].timeSeries[2];
+                if (shortTemps && shortTemps.timeDefines && shortTemps.areas && shortTemps.areas[0].temps) {
+                    shortTemps.timeDefines.forEach((time, index) => {
+                        const dateStr = time.split('T')[0];
+                        const timeHour = time.split('T')[1].substring(0, 2);
+                        if (dailyData[dateStr] && index < shortTemps.areas[0].temps.length) {
+                            const tempValue = shortTemps.areas[0].temps[index];
+                            if (timeHour === "00" || timeHour === "06") { dailyData[dateStr].minTemp = tempValue; }
+                            else if (timeHour === "09" || timeHour === "12") { dailyData[dateStr].maxTemp = tempValue; }
+                        }
+                    });
+                }
+            }
+            if (fData.length > 1 && fData[1].timeSeries) {
+                const weeklyWeather = fData[1].timeSeries[0];
+                const weeklyTemps = fData[1].timeSeries.length > 1 ? fData[1].timeSeries[1] : null;
+                if (weeklyWeather && weeklyWeather.timeDefines) {
+                    weeklyWeather.timeDefines.forEach((time, index) => {
+                        const dateStr = time.split('T')[0];
+                        if (!dailyData[dateStr]) {
+                            dailyData[dateStr] = {
+                                dateText: `${new Date(time).getMonth()+1}/${new Date(time).getDate()}`,
+                                weatherCode: weeklyWeather.areas[0].weatherCodes[index],
+                                weatherText: "ー", minTemp: "-", maxTemp: "-"
+                            };
+                        }
+                    });
+                }
+                if (weeklyTemps && weeklyTemps.timeDefines && weeklyTemps.areas && weeklyTemps.areas[0]) {
+                    weeklyTemps.timeDefines.forEach((time, index) => {
+                        const dateStr = time.split('T')[0];
+                        if (dailyData[dateStr]) {
+                            const areaData = weeklyTemps.areas[0];
+                            if (areaData.tempsMin && index < areaData.tempsMin.length && areaData.tempsMin[index] !== "") {
+                                dailyData[dateStr].minTemp = areaData.tempsMin[index];
+                            }
+                            if (areaData.tempsMax && index < areaData.tempsMax.length && areaData.tempsMax[index] !== "") {
+                                dailyData[dateStr].maxTemp = areaData.tempsMax[index];
+                            }
+                        }
+                    });
+                }
+            }
+            let shortHtml = ""; let weeklyHtml = ""; let dayCount = 0;
+            Object.keys(dailyData).sort().forEach(dateStr => {
+                const d = dailyData[dateStr];
+                const iconUrl = `https://www.jma.go.jp/bosai/forecast/img/${d.weatherCode}.svg`;
+                const cardHtml = `
+                    <div class="forecast-day">
+                        <div class="forecast-date">${d.dateText}</div>
+                        <img src="${iconUrl}" class="weather-img" alt="天気" onerror="this.style.display='none'">
+                        ${d.weatherText !== "ー" ? `<div class="weather-text">${d.weatherText}</div>` : ""}
+                        <div class="temp-box"><span class="temp-max">${d.maxTemp}</span> / <span class="temp-min">${d.minTemp}</span></div>
+                    </div>
+                `;
+                if (dayCount < 3) { shortHtml += cardHtml; } else { weeklyHtml += cardHtml; }
+                dayCount++;
+            });
+            document.getElementById('shortForecast').innerHTML = shortHtml || "データなし";
+            document.getElementById('weeklyForecast').innerHTML = weeklyHtml || "データなし";
+        } catch (e) { console.error("描画エラー:", e); }
+    }
+
+    // メインのエリア更新機能
+    async function updateArea(code, name, el) {
+        currentCode = code; currentName = name;
+        document.getElementById('loading-overlay').style.display = 'block';
+        document.getElementById('areaLabel').innerText = name;
+        
+        if(el) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+        }
+        document.getElementById('linkAlert').href = `https://www.jma.go.jp/bosai/warning/#area_type=offices&area_code=${code}`;
+
+        // 💡 変更点：気象庁のデータ取得とは「別レーン」で実況データを取得開始！
+        // これにより、もしOpen-Meteoの通信が遅くても、全体の表示が遅くなるのを防ぐよ。
+        document.getElementById('prefCurrentDesc').innerText = "取得中...";
+        document.getElementById('prefCurrentTemp').innerText = "--℃";
+        if (prefCoordinates[name]) {
+            const coords = prefCoordinates[name];
+            fetchCurrentWeather(coords.lat, coords.lon, 'pref');
+        } else {
+            document.getElementById('prefCurrentDesc').innerText = "地点データなし";
+        }
+
+        try {
+            // 気象庁データの取得（ここは今まで通り）
+            const [fRes, oRes, wRes] = await Promise.all([
+                fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${code}.json`),
+                fetch(`https://www.jma.go.jp/bosai/forecast/data/overview_forecast/${code}.json`),
+                fetch(`https://www.jma.go.jp/bosai/warning/data/warning/${code}.json`)
+            ]);
+            const fData = await fRes.json();
+            const oData = await oRes.json();
+            const wData = await wRes.json();
+            
+            renderForecasts(fData);
+            document.getElementById('overview').innerText = oData.text || "概況なし";
+            
+            let alerts = [];
+            function findWarnings(obj) {
+                if(Array.isArray(obj)) obj.forEach(findWarnings);
+                else if (typeof obj === 'object' && obj !== null) {
+                    if (obj.code && warnMap[obj.code] && (obj.status === "発表" || obj.status === "継続")) {
+                        alerts.push(warnMap[obj.code]);
+                    }
+                    for(let key in obj) findWarnings(obj[key]);
+                }
+            }
+            findWarnings(wData);
+            alerts = [...new Set(alerts)];
+            const alertBox = document.getElementById('alertContainer');
+            if(alerts.length > 0) {
+                let aHtml = "";
+                alerts.forEach(a => {
+                    const isWarning = a.includes("警報") || a.includes("特別");
+                    let emoji = "⚠️";
+                    for(let key in alertIcons) { if(a.includes(key)) emoji = alertIcons[key]; }
+                    aHtml += `<div class="${isWarning ? 'danger-badge' : 'warning-badge'}">${emoji} ${a}</div>`;
+                });
+                alertBox.innerHTML = aHtml;
+                saveHistory(code, alerts.join(", "));
+            } else {
+                alertBox.innerHTML = `<div class="safe-badge">🟢 現在、警報・注意報はありません</div>`;
+                saveHistory(code, "発表なし");
+            }
+            const infoBox = document.getElementById('infoContainer');
+            infoBox.innerHTML = oData.headlineText ? 
+                `<div class="warning-badge" style="border-left-color:#17a2b8; background:#d1ecf1;">📣 ${oData.headlineText}</div>` : 
+                `<div class="safe-badge" style="background:#e2e3e5; color:#383d41;">特別な気象情報はありません</div>`;
+        } catch (e) { console.error("通信エラー:", e); }
+        showHistory(code);
+        setTimeout(() => { document.getElementById('loading-overlay').style.display = 'none'; }, 500);
+    }
+
+    function saveHistory(code, text) {
+        const key = `hist_${code}`;
+        const now = new Date();
+        let history = JSON.parse(localStorage.getItem(key)) || [];
+        const yesterday = now.getTime() - (24 * 60 * 60 * 1000);
+        history = history.filter(h => h.time > yesterday);
+        if(history.length > 0 && history[0].content === text) return;
+        history.unshift({ time: now.getTime(), dateLabel: `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`, content: text });
+        localStorage.setItem(key, JSON.stringify(history.slice(0, 10)));
+    }
+
+    function showHistory(code) {
+        const history = JSON.parse(localStorage.getItem(`hist_${code}`)) || [];
+        const box = document.getElementById('historyBox');
+        box.innerHTML = history.length ? history.map(h => `<div class="history-item"><span class="history-time">${h.dateLabel}</span> ${h.content}</div>`).join("") : "記録なし";
+    }
+
+    function scheduleNextUpdate() {
+        const now = new Date();
+        const targetHours = [5, 11, 17];
+        let nextUpdate = new Date(now);
+        let found = false;
+        for (let h of targetHours) {
+            if (now.getHours() < h) { nextUpdate.setHours(h, 0, 0, 0); found = true; break; }
+        }
+        if (!found) { nextUpdate.setDate(nextUpdate.getDate() + 1); nextUpdate.setHours(5, 0, 0, 0); }
+        setTimeout(() => { updateArea(currentCode, currentName, null); loadWeatherMap(); scheduleNextUpdate(); }, nextUpdate.getTime() - now.getTime());
+    }
+
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") { updateArea(currentCode, currentName, null); loadWeatherMap(); }
+    });
+
+    // 起動時の初期化処理
+    window.onload = () => {
+        loadWeatherMap();
+        updateArea('390000', '高知', document.querySelector('.tab'));
+        scheduleNextUpdate();
+
+        // 💡 新設：初回のみGPS取得を自動実行する
+        if (isInitialLoad) {
+            fetchGPSWeather(true); // trueは「自動ロードだよ」という合図
+            isInitialLoad = false;
+        }
+    };
+</script>
+
+</body>
+</html>
