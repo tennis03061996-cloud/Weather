@@ -3,26 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>仕事用 気象ダッシュボード Ultimate</title>
+    <title>気象＆天文ダッシュボード Ultimate</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="天気ダッシュ">
     <link rel="apple-touch-icon" href="icon.png">
+    
+    <link rel="icon" href="icon.png">
 
     <style>
         :root { --primary: #004080; --warning: #d9534f; --accent: #ffc107; --bg: #f0f2f5; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background: var(--bg); color: #333; padding-bottom: 60px; }
         
-        /* 💡 ヘッダーのレイアウト変更：ボタンを横に配置 */
+        /* 💡 ヘッダーのレイアウト */
         header { background: var(--primary); color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-        h1 { font-size: 1.1rem; margin: 0; }
-        .gps-btn { background: #fff; color: var(--primary); border: none; padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 0.85rem; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+        .header-left { display: flex; align-items: center; gap: 10px; }
+        h1 { font-size: 1.1rem; margin: 0; white-space: nowrap; }
+
+        /* 月のボタン */
+        .moon-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 5px 10px; border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9rem; transition: 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+        .moon-btn:active { transform: scale(0.95); }
+        .moon-icon-mini { font-size: 1.2rem; }
+
+        /* GPSボタン */
+        .gps-btn { background: #fff; color: var(--primary); border: none; padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 0.85rem; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.2); white-space: nowrap; }
         .gps-btn:active { transform: scale(0.95); }
 
         /* エリア選択タブ */
-        .tabs-container { overflow-x: auto; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 48px; z-index: 999; }
+        .tabs-container { overflow-x: auto; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 56px; z-index: 999; }
         .tabs { display: flex; width: max-content; }
         .tab { padding: 12px 15px; cursor: pointer; white-space: nowrap; transition: 0.3s; border-right: 1px solid #eee; font-weight: bold; display: flex; align-items: center; gap: 5px; }
         .tab.active { background: #e7f0fa; color: var(--primary); border-bottom: 4px solid var(--primary); }
@@ -32,7 +42,7 @@
         .card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
         h2 { font-size: 1rem; margin-top: 0; color: var(--primary); border-left: 5px solid var(--primary); padding-left: 10px; margin-bottom: 12px; }
 
-        /* 💡 新設：現在の実況表示エリア */
+        /* 実況表示エリア */
         .current-weather-box { background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); border-radius: 8px; padding: 12px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #7dd3fc; }
         .current-temp { font-size: 1.8rem; font-weight: bold; color: #0284c7; margin: 0; }
         .current-desc { font-size: 0.9rem; color: #0369a1; margin: 0; font-weight: bold; }
@@ -47,53 +57,84 @@
         .temp-max { color: #d9534f; font-weight: bold; }
         .temp-min { color: #004080; font-weight: bold; }
 
-        /* バッジ表示 */
+        /* バッジ・テキスト表示 */
         .info-text { font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap; color: #444; }
         .warning-badge { background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 10px; border-radius: 6px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; font-weight: bold; border-left: 5px solid var(--accent); }
         .danger-badge { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 10px; border-radius: 6px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; font-weight: bold; border-left: 5px solid var(--warning); }
         .safe-badge { background: #d4edda; color: #155724; padding: 10px; border-radius: 6px; font-weight: bold; text-align: center; }
 
-        /* 天気図 */
+        /* 天気図・リンク・履歴 */
         .map-container { text-align: center; background: #eee; border-radius: 8px; overflow: hidden; }
         img.map-img { max-width: 100%; height: auto; display: block; margin: 0 auto; cursor: zoom-in; }
         .refresh-btn { background: #6c757d; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; }
-
         .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .action-btn { background: var(--primary); color: white; text-align: center; padding: 12px 5px; text-decoration: none; border-radius: 8px; font-size: 0.85rem; font-weight: bold; display: block; }
-
         .history-item { font-size: 0.85rem; padding: 8px 0; border-bottom: 1px solid #eee; }
         .history-time { color: #888; font-size: 0.75rem; margin-right: 8px; }
+
         #loading-overlay { position: fixed; top: 60px; left: 0; right: 0; background: rgba(255,255,255,0.9); text-align: center; padding: 10px; display: none; z-index: 2000; font-size: 0.9rem; font-weight: bold; color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
-        /* 💡 新設：ポップアップ（モーダル）のスタイル */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; align-items: center; justify-content: center; }
-        .modal-content { background: white; width: 85%; max-width: 400px; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative; text-align: center; }
+        /* モーダル共通 */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 3000; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+        .modal-content { background: white; width: 85%; max-width: 400px; border-radius: 12px; padding: 20px; position: relative; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); animation: popIn 0.3s ease-out; }
+        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         .modal-close { position: absolute; top: 10px; right: 15px; font-size: 1.5rem; color: #888; cursor: pointer; font-weight: bold; }
-        .modal-title { margin-top: 0; color: var(--primary); font-size: 1.1rem; border-bottom: 2px solid #eee; padding-bottom: 8px; }
+        .modal-title { margin-top: 0; font-size: 1.1rem; border-bottom: 2px solid #eee; padding-bottom: 8px; }
+
+        /* GPSモーダル専用 */
         .gps-weather-large { font-size: 3rem; margin: 10px 0; }
         .gps-temp-large { font-size: 2rem; font-weight: bold; color: #d9534f; margin: 0; }
-        .gps-location-text { font-size: 0.85rem; color: #666; margin-top: 10px; }
+
+        /* 月モーダル専用 */
+        .moon-modal-content { background: radial-gradient(circle at top, #1a1a2e 0%, #0f0f1a 100%); color: white; border: 1px solid #333; }
+        .moon-graphic { font-size: 5rem; margin: 15px 0; filter: drop-shadow(0 0 15px rgba(255,255,255,0.4)); }
+        .astro-event-list { text-align: left; background: rgba(255,255,255,0.1); border-radius: 10px; padding: 15px; margin-top: 15px; font-size: 0.9rem; }
+        .event-item { margin-bottom: 8px; display: flex; gap: 8px; align-items: flex-start; }
+        .event-tag { background: var(--accent); color: #000; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; flex-shrink: 0; }
+        .event-tag.today { background: #ff4757; color: #fff; }
     </style>
 </head>
 <body>
 
 <header>
-    <h1>ダッシュボード</h1>
+    <div class="header-left">
+        <h1>ダッシュボード</h1>
+        <button class="moon-btn" onclick="openMoonModal()">
+            <span id="headerMoonIcon" class="moon-icon-mini">🌑</span>
+            <span id="headerMoonName" style="font-size: 0.75rem;">月齢--</span>
+        </button>
+    </div>
     <button class="gps-btn" onclick="fetchGPSWeather(false)">📍現在地</button>
 </header>
 
 <div id="loading-overlay">データを最新に更新中...</div>
 
+<div id="moonModal" class="modal-overlay">
+    <div class="modal-content moon-modal-content">
+        <span class="modal-close" onclick="closeMoonModal()" style="color: #ccc;">&times;</span>
+        <h3 class="modal-title" style="color: var(--accent); border-bottom-color: rgba(255,255,255,0.2);">🌙 今夜のお月様</h3>
+        <div id="moonLargeIcon" class="moon-graphic">🌑</div>
+        <h2 id="moonPhaseName" style="color: white; margin: 5px 0; font-size: 1.5rem;">読込中...</h2>
+        <p id="moonAgeDetail" style="font-size: 0.8rem; opacity: 0.8; margin-bottom: 20px;"></p>
+        
+        <div class="astro-event-list">
+            <h4 style="margin: 0 0 10px 0; font-size: 0.9rem; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 5px;">🔭 注目イベント (直近1週間)</h4>
+            <div id="eventContainer">イベントを確認中...</div>
+        </div>
+        <p style="font-size: 0.6rem; margin-top: 15px; opacity: 0.6;">情報提供: 国立天文台(NAOJ) / AstroPixels</p>
+    </div>
+</div>
+
 <div id="gpsModal" class="modal-overlay">
     <div class="modal-content">
         <span class="modal-close" onclick="closeModal()">&times;</span>
-        <h3 class="modal-title">📍 現在地の天気と気温</h3>
+        <h3 class="modal-title" style="color: var(--primary);">📍 現在地の天気と気温</h3>
         <div id="gpsLoading">GPS情報を取得しています...<br><small>(許可を求められたら「許可」を押してください)</small></div>
         <div id="gpsResult" style="display:none;">
             <div class="gps-weather-large" id="gpsIcon">☀️</div>
             <p class="gps-temp-large" id="gpsTemp">--℃</p>
-            <p style="font-weight: bold; color: #444;" id="gpsDesc">晴れ</p>
-            <p class="gps-location-text">Open-Meteo APIより取得</p>
+            <p style="font-weight: bold; color: #444; margin-bottom: 5px;" id="gpsDesc">晴れ</p>
+            <p style="font-size: 0.7rem; color: #999; margin-top: 10px;">Open-Meteo APIより取得</p>
         </div>
     </div>
 </div>
@@ -115,7 +156,6 @@
 <div class="container">
     <div class="card">
         <h2>1. 短期天気予報・気温 (<span id="areaLabel">高知</span>)</h2>
-        
         <div class="current-weather-box" id="currentPrefBox">
             <div>
                 <p style="margin:0; font-size:0.8rem; color:#0369a1;">現在の実況 (Open-Meteo)</p>
@@ -123,17 +163,19 @@
             </div>
             <p class="current-temp" id="prefCurrentTemp">--℃</p>
         </div>
-
         <div id="shortForecast" class="forecast-container">読込中...</div>
     </div>
+
     <div class="card">
         <h2>★ 週間天気予報・気温</h2>
         <div id="weeklyForecast" class="forecast-container">読込中...</div>
     </div>
+
     <div class="card">
         <h2>2. 天気概況</h2>
         <div id="overview" class="info-text">読込中...</div>
     </div>
+
     <div class="card">
         <h2>3. 発表中の注意報・警報</h2>
         <div id="alertContainer">確認中...</div>
@@ -141,10 +183,12 @@
             <a id="linkAlert" href="#" target="_blank" style="font-size: 0.85rem; color: #004080; font-weight: bold; text-decoration: underline;">→ 気象庁HPで今後の推移を確認</a>
         </div>
     </div>
+
     <div class="card">
         <h2>4. 気象情報の発表タイトル</h2>
         <div id="infoContainer">確認中...</div>
     </div>
+
     <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
             <h2 style="margin:0; border:none; padding:0;">5. 実況天気図</h2>
@@ -154,6 +198,7 @@
             <p style="padding-top:80px; color: #666;">最新の画像を検索中...</p>
         </div>
     </div>
+
     <div class="card">
         <h2>6 & 7. 地震・津波 / 台風</h2>
         <div class="btn-grid">
@@ -161,6 +206,7 @@
             <a href="https://www.jma.go.jp/bosai/map.html#contents=typhoon" target="_blank" class="action-btn" style="background:#ff8c00;">台風進路予想</a>
         </div>
     </div>
+
     <div class="card">
         <h2>8. 24時間以内の変化履歴</h2>
         <div id="historyBox">記録なし</div>
@@ -170,93 +216,146 @@
 <script>
     let currentCode = '390000';
     let currentName = '高知';
-    let isInitialLoad = true; // 初回起動かどうかの判定用フラグ
+    let isInitialLoad = true;
 
-    // 💡 新設：各府県の代表地点の緯度経度データ（Open-Meteo用）
+    // 💡 各府県の代表地点の緯度経度（Open-Meteo実況用）
     const prefCoordinates = {
-        "高知": {lat: 33.5597, lon: 133.5311},
-        "大阪": {lat: 34.6937, lon: 135.5023},
-        "京都": {lat: 35.0116, lon: 135.7681},
-        "兵庫": {lat: 34.6901, lon: 135.1955}, // 神戸
-        "滋賀": {lat: 35.0178, lon: 135.8546}, // 大津
-        "奈良": {lat: 34.6851, lon: 135.8048},
-        "和歌山": {lat: 34.2305, lon: 135.1706},
-        "沖縄": {lat: 26.2124, lon: 127.6809}, // 那覇
-        "石垣": {lat: 24.3448, lon: 124.1553}
+        "高知": {lat: 33.5597, lon: 133.5311}, "大阪": {lat: 34.6937, lon: 135.5023}, "京都": {lat: 35.0116, lon: 135.7681},
+        "兵庫": {lat: 34.6901, lon: 135.1955}, "滋賀": {lat: 35.0178, lon: 135.8546}, "奈良": {lat: 34.6851, lon: 135.8048},
+        "和歌山": {lat: 34.2305, lon: 135.1706}, "沖縄": {lat: 26.2124, lon: 127.6809}, "石垣": {lat: 24.3448, lon: 124.1553}
     };
 
-    // 💡 新設：Open-Meteoの天気コードを日本語と絵文字に変換する辞書
+    // 💡 天文イベントリスト（国立天文台基準：2026年）
+    const ASTRO_EVENTS_2026 = [
+        { date: "2026-03-03", name: "皆既月食（日本全国で観測可）", type: "月食" },
+        { date: "2026-03-20", name: "春分の日（昼夜の長さがほぼ同じ）", type: "季節" },
+        { date: "2026-04-22", name: "こと座流星群が極大", type: "流星群" },
+        { date: "2026-05-06", name: "みずがめ座η流星群が極大", type: "流星群" },
+        { date: "2026-08-13", name: "ペルセウス座流星群が極大（最高条件！）", type: "流星群" },
+        { date: "2026-10-21", name: "オリオン座流星群が極大", type: "流星群" },
+        { date: "2026-11-18", name: "しし座流星群が極大", type: "流星群" },
+        { date: "2026-11-24", name: "満月（スーパームーン）", type: "月" },
+        { date: "2026-12-14", name: "ふたご座流星群が極大", type: "流星群" },
+        { date: "2026-12-24", name: "満月（今年最大の満月/スーパームーン）", type: "月" }
+    ];
+
+    // Open-Meteoの天気コード変換
     function decodeWMO(code) {
         if(code === 0) return {text: "快晴", icon: "☀️"};
-        if(code === 1 || code === 2 || code === 3) return {text: "晴れ/曇り", icon: "⛅"};
+        if(code <= 3) return {text: "晴れ/曇り", icon: "⛅"};
         if(code === 45 || code === 48) return {text: "霧", icon: "🌫️"};
         if(code >= 51 && code <= 67) return {text: "雨", icon: "🌧️"};
         if(code >= 71 && code <= 77) return {text: "雪", icon: "❄️"};
         if(code >= 80 && code <= 82) return {text: "にわか雨", icon: "☔"};
-        if(code >= 85 && code <= 86) return {text: "雪おこし", icon: "⛄"};
-        if(code >= 95 && code <= 99) return {text: "雷雨", icon: "⛈️"};
+        if(code >= 95) return {text: "雷雨", icon: "⛈️"};
         return {text: "不明", icon: "❓"};
     }
 
-    // 君が修正してくれた警報コードマップ
+    // 君が修正してくれた完全版の警報マップ！
     const warnMap = {
         "02":"暴風雪警報","03":"大雨警報","04":"洪水警報","05":"暴風警報","06":"大雪警報","07":"波浪警報","08":"高潮警報",
         "10":"大雨注意報","12":"大雪注意報","13":"風雪注意報","14":"雷注意報","15":"強風注意報","16":"波浪注意報","17":"融雪注意報","18":"洪水注意報","19":"高潮注意報","20":"濃霧注意報","21":"乾燥注意報","22":"なだれ注意報","23":"低温注意報","24":"霜注意報","25":"着氷注意報","26":"着雪注意報",
         "32":"暴風雪特別警報","33":"大雨特別警報","35":"暴風特別警報","36":"大雪特別警報","37":"波浪特別警報","38":"高潮特別警報"
     };
-
-    const alertIcons = {
-        "大雨":"🌧️", "洪水":"🌊", "暴風":"🌀", "強風":"💨", "大雪":"❄️", "雷":"⚡", "高潮":"🌊", "波浪":"🌊", "熱中症":"☀️", "乾燥":"🍂", "なだれ":"🗻", "濃霧":"🌫️"
-    };
+    const alertIcons = { "大雨":"🌧️", "洪水":"🌊", "暴風":"🌀", "強風":"💨", "大雪":"❄️", "雷":"⚡", "高潮":"🌊", "波浪":"🌊", "熱中症":"☀️", "乾燥":"🍂", "なだれ":"🗻", "濃霧":"🌫️" };
 
     // ==========================================
-    // 💡 新機能：Open-Meteoから現在の実況を取得する関数
+    // 💡 月の満ち欠けとイベント関連
     // ==========================================
-    async function fetchCurrentWeather(lat, lon, targetElementId) {
-        try {
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=Asia%2FTokyo`;
-            const response = await fetch(url);
-            const data = await response.json();
-            
-            if(data && data.current_weather) {
-                const temp = data.current_weather.temperature;
-                const weatherInfo = decodeWMO(data.current_weather.weathercode);
-                
-                if (targetElementId === 'pref') {
-                    // 各府県のカード内に表示
-                    document.getElementById('prefCurrentDesc').innerText = `${weatherInfo.icon} ${weatherInfo.text}`;
-                    document.getElementById('prefCurrentTemp').innerText = `${temp}℃`;
-                } else if (targetElementId === 'gps') {
-                    // ポップアップ内に表示
-                    document.getElementById('gpsLoading').style.display = 'none';
-                    document.getElementById('gpsResult').style.display = 'block';
-                    document.getElementById('gpsIcon').innerText = weatherInfo.icon;
-                    document.getElementById('gpsTemp').innerText = `${temp}℃`;
-                    document.getElementById('gpsDesc').innerText = weatherInfo.text;
-                }
-            }
-        } catch (e) {
-            console.error("実況天気取得エラー:", e);
-            if (targetElementId === 'pref') {
-                document.getElementById('prefCurrentDesc').innerText = "取得失敗";
-            } else if (targetElementId === 'gps') {
-                document.getElementById('gpsLoading').innerHTML = "天気の取得に失敗しました。<br>通信環境を確認してください。";
-            }
+    function getLunarDetails(date) {
+        // 簡易月齢計算（2000/1/6の新月基準）
+        const refDate = new Date(2000, 0, 6, 18, 14);
+        const diff = (date - refDate) / (1000 * 60 * 60 * 24);
+        const age = diff % 29.530588853;
+        
+        let icon, name;
+        if (age < 1.5) { icon = "🌑"; name = "新月"; }
+        else if (age < 6.5) { icon = "🌒"; name = "三日月"; }
+        else if (age < 8.5) { icon = "🌓"; name = "上弦の月"; }
+        else if (age < 13.5) { icon = "🌔"; name = "十三夜月"; }
+        else if (age < 16.5) { icon = "🌕"; name = "満月"; }
+        else if (age < 21.5) { icon = "🌖"; name = "寝待月"; }
+        else if (age < 23.5) { icon = "🌗"; name = "下弦の月"; }
+        else { icon = "🌘"; name = "有明の月"; }
+        
+        return { age: age.toFixed(1), icon, name };
+    }
+
+    function updateMoonHeader() {
+        const info = getLunarDetails(new Date());
+        document.getElementById('headerMoonIcon').innerText = info.icon;
+        document.getElementById('headerMoonName').innerText = `月齢 ${info.age}`;
+        document.getElementById('moonLargeIcon').innerText = info.icon;
+        document.getElementById('moonPhaseName').innerText = info.name;
+        document.getElementById('moonAgeDetail').innerText = `現在の月齢: ${info.age} (周期 約29.5日)`;
+    }
+
+    function openMoonModal() {
+        document.getElementById('moonModal').style.display = 'flex';
+        renderAstroEvents();
+    }
+    function closeMoonModal() { document.getElementById('moonModal').style.display = 'none'; }
+
+    function renderAstroEvents() {
+        const container = document.getElementById('eventContainer');
+        const now = new Date();
+        now.setHours(0,0,0,0);
+        // 今日から1週間後まで
+        const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        
+        const filtered = ASTRO_EVENTS_2026.filter(ev => {
+            const evDate = new Date(ev.date);
+            return evDate >= now && evDate <= nextWeek;
+        });
+
+        if (filtered.length === 0) {
+            container.innerHTML = "<p style='opacity:0.7; font-size:0.85rem;'>直近1週間に大きな天文イベントはありません。夜空をゆっくり楽しみましょう。</p>";
+        } else {
+            container.innerHTML = filtered.map(ev => {
+                const diffDays = Math.ceil((new Date(ev.date) - now) / (1000 * 60 * 60 * 24));
+                const isToday = diffDays === 0;
+                return `<div class="event-item">
+                    <span class="event-tag ${isToday ? 'today' : ''}">${isToday ? '今日！' : diffDays + '日後'}</span>
+                    <span><strong>${ev.name}</strong></span>
+                </div>`;
+            }).join("");
         }
     }
 
     // ==========================================
-    // 💡 新機能：GPSで現在地を取得してポップアップ表示
+    // 💡 実況天気・GPS取得 (Open-Meteo)
     // ==========================================
+    async function fetchCurrentWeather(lat, lon, targetElementId) {
+        try {
+            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=Asia%2FTokyo`);
+            const data = await res.json();
+            if(data && data.current_weather) {
+                const info = decodeWMO(data.current_weather.weathercode);
+                if (targetElementId === 'pref') {
+                    document.getElementById('prefCurrentDesc').innerText = `${info.icon} ${info.text}`;
+                    document.getElementById('prefCurrentTemp').innerText = `${data.current_weather.temperature}℃`;
+                } else if (targetElementId === 'gps') {
+                    document.getElementById('gpsLoading').style.display = 'none';
+                    document.getElementById('gpsResult').style.display = 'block';
+                    document.getElementById('gpsIcon').innerText = info.icon;
+                    document.getElementById('gpsTemp').innerText = `${data.current_weather.temperature}℃`;
+                    document.getElementById('gpsDesc').innerText = info.text;
+                }
+            }
+        } catch (e) {
+            console.error(e);
+            if(targetElementId === 'pref') document.getElementById('prefCurrentDesc').innerText = "取得失敗";
+            else document.getElementById('gpsLoading').innerHTML = "取得に失敗しました。";
+        }
+    }
+
     function fetchGPSWeather(isAutoLoad) {
         const modal = document.getElementById('gpsModal');
         const loadingBox = document.getElementById('gpsLoading');
         const resultBox = document.getElementById('gpsResult');
 
-        // 自動ロード時は、Geolocation APIをサポートしていないブラウザなら何もしない
         if (isAutoLoad && !navigator.geolocation) return;
         
-        // モーダルを表示して初期化
         modal.style.display = 'flex';
         loadingBox.style.display = 'block';
         loadingBox.innerHTML = "GPS情報を取得しています...<br><small>(許可を求められたら「許可」を押してください)</small>";
@@ -264,34 +363,20 @@
 
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-                    fetchCurrentWeather(lat, lon, 'gps');
-                },
-                (error) => {
-                    // GPSが拒否されたり取得できなかった場合
-                    console.warn("GPS取得エラー", error);
-                    if (!isAutoLoad) {
-                        loadingBox.innerHTML = "現在地の取得が許可されていないか、<br>電波が届いていません。";
-                    } else {
-                        // 自動ロード時で失敗した場合は、ポップアップをそっと閉じる
-                        closeModal();
-                    }
-                },
-                { timeout: 10000 } // 10秒でタイムアウト
+                (pos) => fetchCurrentWeather(pos.coords.latitude, pos.coords.longitude, 'gps'),
+                (err) => { if (!isAutoLoad) loadingBox.innerHTML = "現在地の取得ができませんでした。"; else closeModal(); },
+                { timeout: 10000 }
             );
         } else {
-            loadingBox.innerHTML = "お使いのブラウザは<br>位置情報に対応していません。";
+            loadingBox.innerHTML = "位置情報に対応していません。";
         }
     }
-
-    function closeModal() {
-        document.getElementById('gpsModal').style.display = 'none';
-    }
+    function closeModal() { document.getElementById('gpsModal').style.display = 'none'; }
 
 
-    // 既存の天気図取得機能
+    // ==========================================
+    // 💡 気象庁データ処理（エラー対策済み完全版）
+    // ==========================================
     async function loadWeatherMap() {
         const box = document.getElementById('mapBox');
         try {
@@ -301,12 +386,9 @@
                 const latestFile = data.near.now[data.near.now.length - 1];
                 box.innerHTML = `<img src="https://www.jma.go.jp/bosai/weather_map/data/png/${latestFile}" class="map-img" onclick="window.open(this.src, '_blank')">`;
             }
-        } catch (e) {
-            box.innerHTML = `<p style="padding:20px;">天気図の取得に失敗しました</p>`;
-        }
+        } catch (e) { box.innerHTML = `<p style="padding:20px;">天気図の取得に失敗しました</p>`; }
     }
 
-    // 気象庁のデータパズル（前回直した安全機能入り）
     function renderForecasts(fData) {
         let dailyData = {}; 
         try {
@@ -356,12 +438,8 @@
                         const dateStr = time.split('T')[0];
                         if (dailyData[dateStr]) {
                             const areaData = weeklyTemps.areas[0];
-                            if (areaData.tempsMin && index < areaData.tempsMin.length && areaData.tempsMin[index] !== "") {
-                                dailyData[dateStr].minTemp = areaData.tempsMin[index];
-                            }
-                            if (areaData.tempsMax && index < areaData.tempsMax.length && areaData.tempsMax[index] !== "") {
-                                dailyData[dateStr].maxTemp = areaData.tempsMax[index];
-                            }
+                            if (areaData.tempsMin && index < areaData.tempsMin.length && areaData.tempsMin[index] !== "") dailyData[dateStr].minTemp = areaData.tempsMin[index];
+                            if (areaData.tempsMax && index < areaData.tempsMax.length && areaData.tempsMax[index] !== "") dailyData[dateStr].maxTemp = areaData.tempsMax[index];
                         }
                     });
                 }
@@ -373,7 +451,7 @@
                 const cardHtml = `
                     <div class="forecast-day">
                         <div class="forecast-date">${d.dateText}</div>
-                        <img src="${iconUrl}" class="weather-img" alt="天気" onerror="this.style.display='none'">
+                        <img src="${iconUrl}" class="weather-img" alt="天気アイコン" onerror="this.style.display='none'">
                         ${d.weatherText !== "ー" ? `<div class="weather-text">${d.weatherText}</div>` : ""}
                         <div class="temp-box"><span class="temp-max">${d.maxTemp}</span> / <span class="temp-min">${d.minTemp}</span></div>
                     </div>
@@ -382,35 +460,27 @@
                 dayCount++;
             });
             document.getElementById('shortForecast').innerHTML = shortHtml || "データなし";
-            document.getElementById('weeklyForecast').innerHTML = weeklyHtml || "データなし";
+            document.getElementById('weeklyForecast').innerHTML = weeklyHtml || "週間データがありません";
         } catch (e) { console.error("描画エラー:", e); }
     }
 
-    // メインのエリア更新機能
     async function updateArea(code, name, el) {
         currentCode = code; currentName = name;
         document.getElementById('loading-overlay').style.display = 'block';
         document.getElementById('areaLabel').innerText = name;
-        
+
         if(el) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             el.classList.add('active');
         }
         document.getElementById('linkAlert').href = `https://www.jma.go.jp/bosai/warning/#area_type=offices&area_code=${code}`;
 
-        // 💡 変更点：気象庁のデータ取得とは「別レーン」で実況データを取得開始！
-        // これにより、もしOpen-Meteoの通信が遅くても、全体の表示が遅くなるのを防ぐよ。
+        // 独立してOpen-Meteoの実況を取得（関数の喧嘩防止）
         document.getElementById('prefCurrentDesc').innerText = "取得中...";
         document.getElementById('prefCurrentTemp').innerText = "--℃";
-        if (prefCoordinates[name]) {
-            const coords = prefCoordinates[name];
-            fetchCurrentWeather(coords.lat, coords.lon, 'pref');
-        } else {
-            document.getElementById('prefCurrentDesc').innerText = "地点データなし";
-        }
+        if (prefCoordinates[name]) fetchCurrentWeather(prefCoordinates[name].lat, prefCoordinates[name].lon, 'pref');
 
         try {
-            // 気象庁データの取得（ここは今まで通り）
             const [fRes, oRes, wRes] = await Promise.all([
                 fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${code}.json`),
                 fetch(`https://www.jma.go.jp/bosai/forecast/data/overview_forecast/${code}.json`),
@@ -419,10 +489,10 @@
             const fData = await fRes.json();
             const oData = await oRes.json();
             const wData = await wRes.json();
-            
+
             renderForecasts(fData);
             document.getElementById('overview').innerText = oData.text || "概況なし";
-            
+
             let alerts = [];
             function findWarnings(obj) {
                 if(Array.isArray(obj)) obj.forEach(findWarnings);
@@ -435,6 +505,7 @@
             }
             findWarnings(wData);
             alerts = [...new Set(alerts)];
+
             const alertBox = document.getElementById('alertContainer');
             if(alerts.length > 0) {
                 let aHtml = "";
@@ -450,10 +521,12 @@
                 alertBox.innerHTML = `<div class="safe-badge">🟢 現在、警報・注意報はありません</div>`;
                 saveHistory(code, "発表なし");
             }
+
             const infoBox = document.getElementById('infoContainer');
             infoBox.innerHTML = oData.headlineText ? 
                 `<div class="warning-badge" style="border-left-color:#17a2b8; background:#d1ecf1;">📣 ${oData.headlineText}</div>` : 
                 `<div class="safe-badge" style="background:#e2e3e5; color:#383d41;">特別な気象情報はありません</div>`;
+
         } catch (e) { console.error("通信エラー:", e); }
         showHistory(code);
         setTimeout(() => { document.getElementById('loading-overlay').style.display = 'none'; }, 500);
@@ -482,7 +555,9 @@
         let nextUpdate = new Date(now);
         let found = false;
         for (let h of targetHours) {
-            if (now.getHours() < h) { nextUpdate.setHours(h, 0, 0, 0); found = true; break; }
+            if (now.getHours() < h || (now.getHours() === h && now.getMinutes() === 0 && now.getSeconds() === 0)) {
+                nextUpdate.setHours(h, 0, 0, 0); found = true; break;
+            }
         }
         if (!found) { nextUpdate.setDate(nextUpdate.getDate() + 1); nextUpdate.setHours(5, 0, 0, 0); }
         setTimeout(() => { updateArea(currentCode, currentName, null); loadWeatherMap(); scheduleNextUpdate(); }, nextUpdate.getTime() - now.getTime());
@@ -492,15 +567,14 @@
         if (document.visibilityState === "visible") { updateArea(currentCode, currentName, null); loadWeatherMap(); }
     });
 
-    // 起動時の初期化処理
     window.onload = () => {
+        updateMoonHeader(); // 💡 月のアイコンを初期化
         loadWeatherMap();
         updateArea('390000', '高知', document.querySelector('.tab'));
         scheduleNextUpdate();
 
-        // 💡 新設：初回のみGPS取得を自動実行する
         if (isInitialLoad) {
-            fetchGPSWeather(true); // trueは「自動ロードだよ」という合図
+            fetchGPSWeather(true);
             isInitialLoad = false;
         }
     };
