@@ -17,7 +17,7 @@
         :root { --primary: #004080; --warning: #d9534f; --accent: #ffc107; --bg: #f0f2f5; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background: var(--bg); color: #333; padding-bottom: 60px; }
         
-        /* 💡 ヘッダーのレイアウト */
+        /* ヘッダーのレイアウト */
         header { background: var(--primary); color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .header-left { display: flex; align-items: center; gap: 10px; }
         h1 { font-size: 1.1rem; margin: 0; white-space: nowrap; }
@@ -218,14 +218,14 @@
     let currentName = '高知';
     let isInitialLoad = true;
 
-    // 💡 各府県の代表地点の緯度経度（Open-Meteo実況用）
+    // 各府県の代表地点の緯度経度
     const prefCoordinates = {
         "高知": {lat: 33.5597, lon: 133.5311}, "大阪": {lat: 34.6937, lon: 135.5023}, "京都": {lat: 35.0116, lon: 135.7681},
         "兵庫": {lat: 34.6901, lon: 135.1955}, "滋賀": {lat: 35.0178, lon: 135.8546}, "奈良": {lat: 34.6851, lon: 135.8048},
         "和歌山": {lat: 34.2305, lon: 135.1706}, "沖縄": {lat: 26.2124, lon: 127.6809}, "石垣": {lat: 24.3448, lon: 124.1553}
     };
 
-    // 💡 天文イベントリスト（国立天文台基準：2026年）
+    // 天文イベントリスト
     const ASTRO_EVENTS_2026 = [
         { date: "2026-03-03", name: "皆既月食（日本全国で観測可）", type: "月食" },
         { date: "2026-03-20", name: "春分の日（昼夜の長さがほぼ同じ）", type: "季節" },
@@ -239,7 +239,26 @@
         { date: "2026-12-24", name: "満月（今年最大の満月/スーパームーン）", type: "月" }
     ];
 
-    // Open-Meteoの天気コード変換
+    // ==========================================
+    // 💡 新機能：気象庁テロップ番号を正しいSVG画像に変換する辞書
+    // ==========================================
+    const jmaIconMap = {
+        "100":"100", "101":"101", "102":"102", "103":"102", "104":"104", "105":"104", "106":"102", "107":"102", "108":"102",
+        "110":"110", "111":"111", "112":"112", "113":"112", "114":"112", "115":"112", "116":"112", "117":"112", "118":"112", "119":"112",
+        "120":"102", "121":"102", "122":"112", "123":"112", "124":"112", "125":"112", "126":"112", "127":"112", "128":"112", "129":"112",
+        "130":"100", "131":"100", "132":"101", "140":"102", "160":"104", "170":"104",
+        "200":"200", "201":"201", "202":"202", "203":"202", "204":"204", "205":"204", "206":"202", "207":"202", "208":"202", "209":"202",
+        "210":"210", "211":"211", "212":"212", "213":"212", "214":"212", "215":"212", "216":"212", "217":"212", "218":"212", "219":"212",
+        "220":"202", "221":"202", "222":"212", "223":"212", "224":"212", "225":"212", "226":"212", "227":"212", "228":"212", "229":"212",
+        "230":"200", "231":"200", "240":"202", "250":"204", "260":"204", "270":"204",
+        "300":"300", "301":"301", "302":"302", "303":"302", "304":"300", "306":"300", "308":"308", "309":"308",
+        "311":"311", "313":"313", "314":"314", "315":"314", "316":"311", "317":"311", "320":"301", "321":"302", "322":"302", "323":"302", "324":"302", "325":"302", "328":"302", "329":"302",
+        "340":"400", "350":"300", "361":"411", "371":"411",
+        "400":"400", "401":"401", "402":"402", "403":"402", "405":"400", "406":"400", "407":"400", "409":"400",
+        "411":"411", "413":"413", "414":"414", "420":"401", "421":"402", "422":"402", "423":"402", "425":"400", "426":"400", "427":"400",
+        "450":"400"
+    };
+
     function decodeWMO(code) {
         if(code === 0) return {text: "快晴", icon: "☀️"};
         if(code <= 3) return {text: "晴れ/曇り", icon: "⛅"};
@@ -251,7 +270,6 @@
         return {text: "不明", icon: "❓"};
     }
 
-    // 君が修正してくれた完全版の警報マップ！
     const warnMap = {
         "02":"暴風雪警報","03":"大雨警報","04":"洪水警報","05":"暴風警報","06":"大雪警報","07":"波浪警報","08":"高潮警報",
         "10":"大雨注意報","12":"大雪注意報","13":"風雪注意報","14":"雷注意報","15":"強風注意報","16":"波浪注意報","17":"融雪注意報","18":"洪水注意報","19":"高潮注意報","20":"濃霧注意報","21":"乾燥注意報","22":"なだれ注意報","23":"低温注意報","24":"霜注意報","25":"着氷注意報","26":"着雪注意報",
@@ -259,11 +277,7 @@
     };
     const alertIcons = { "大雨":"🌧️", "洪水":"🌊", "暴風":"🌀", "強風":"💨", "大雪":"❄️", "雷":"⚡", "高潮":"🌊", "波浪":"🌊", "熱中症":"☀️", "乾燥":"🍂", "なだれ":"🗻", "濃霧":"🌫️" };
 
-    // ==========================================
-    // 💡 月の満ち欠けとイベント関連
-    // ==========================================
     function getLunarDetails(date) {
-        // 簡易月齢計算（2000/1/6の新月基準）
         const refDate = new Date(2000, 0, 6, 18, 14);
         const diff = (date - refDate) / (1000 * 60 * 60 * 24);
         const age = diff % 29.530588853;
@@ -300,7 +314,6 @@
         const container = document.getElementById('eventContainer');
         const now = new Date();
         now.setHours(0,0,0,0);
-        // 今日から1週間後まで
         const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
         
         const filtered = ASTRO_EVENTS_2026.filter(ev => {
@@ -322,9 +335,6 @@
         }
     }
 
-    // ==========================================
-    // 💡 実況天気・GPS取得 (Open-Meteo)
-    // ==========================================
     async function fetchCurrentWeather(lat, lon, targetElementId) {
         try {
             const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=Asia%2FTokyo`);
@@ -343,7 +353,6 @@
                 }
             }
         } catch (e) {
-            console.error(e);
             if(targetElementId === 'pref') document.getElementById('prefCurrentDesc').innerText = "取得失敗";
             else document.getElementById('gpsLoading').innerHTML = "取得に失敗しました。";
         }
@@ -373,10 +382,6 @@
     }
     function closeModal() { document.getElementById('gpsModal').style.display = 'none'; }
 
-
-    // ==========================================
-    // 💡 気象庁データ処理（エラー対策済み完全版）
-    // ==========================================
     async function loadWeatherMap() {
         const box = document.getElementById('mapBox');
         try {
@@ -444,10 +449,16 @@
                     });
                 }
             }
+
             let shortHtml = ""; let weeklyHtml = ""; let dayCount = 0;
             Object.keys(dailyData).sort().forEach(dateStr => {
                 const d = dailyData[dateStr];
-                const iconUrl = `https://www.jma.go.jp/bosai/forecast/img/${d.weatherCode}.svg`;
+                
+                // 💡 今回の修正ポイント：ここでテロップ番号を安全に変換するよ！
+                // もし辞書にない未知の番号が来たら、頭文字の番号（晴れ=100等）に変換してエラーを防ぐよ。
+                const mappedCode = jmaIconMap[d.weatherCode] || (String(d.weatherCode).charAt(0) + "00");
+                const iconUrl = `https://www.jma.go.jp/bosai/forecast/img/${mappedCode}.svg`;
+                
                 const cardHtml = `
                     <div class="forecast-day">
                         <div class="forecast-date">${d.dateText}</div>
@@ -475,7 +486,6 @@
         }
         document.getElementById('linkAlert').href = `https://www.jma.go.jp/bosai/warning/#area_type=offices&area_code=${code}`;
 
-        // 独立してOpen-Meteoの実況を取得（関数の喧嘩防止）
         document.getElementById('prefCurrentDesc').innerText = "取得中...";
         document.getElementById('prefCurrentTemp').innerText = "--℃";
         if (prefCoordinates[name]) fetchCurrentWeather(prefCoordinates[name].lat, prefCoordinates[name].lon, 'pref');
@@ -568,7 +578,7 @@
     });
 
     window.onload = () => {
-        updateMoonHeader(); // 💡 月のアイコンを初期化
+        updateMoonHeader();
         loadWeatherMap();
         updateArea('390000', '高知', document.querySelector('.tab'));
         scheduleNextUpdate();
