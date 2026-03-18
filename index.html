@@ -10,7 +10,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="天気ダッシュ">
     <link rel="apple-touch-icon" href="icon.png">
-    
     <link rel="icon" href="icon.png">
 
     <style>
@@ -52,6 +51,10 @@
         .forecast-day { background: #fdfdfd; border: 1px solid #eaeaea; border-radius: 8px; padding: 12px; min-width: 100px; text-align: center; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .forecast-date { font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; color: #555; }
         .weather-img { width: 50px; height: 50px; display: block; margin: 0 auto; }
+        
+        /* 💡 降水確率の表示スタイルを追加 */
+        .pop-box { font-size: 0.8rem; color: #0066cc; margin: 5px 0; font-weight: bold; background: #e6f2ff; border-radius: 4px; padding: 2px 0; }
+        
         .weather-text { font-size: 0.8rem; margin: 5px 0; min-height: 2.4em; display: flex; align-items: center; justify-content: center; line-height: 1.2; }
         .temp-box { font-size: 0.9rem; margin-top: 5px; background: #f4f4f4; border-radius: 4px; padding: 4px; }
         .temp-max { color: #d9534f; font-weight: bold; }
@@ -92,6 +95,11 @@
         .event-item { margin-bottom: 8px; display: flex; gap: 8px; align-items: flex-start; }
         .event-tag { background: var(--accent); color: #000; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; flex-shrink: 0; }
         .event-tag.today { background: #ff4757; color: #fff; }
+
+        /* 気象台コメント専用 */
+        .observatory-comment-box { background: #fffdf0; border: 1px solid #ffeeba; border-radius: 8px; padding: 15px; border-left: 5px solid #ffc107; }
+        .obs-links a { color: #004080; text-decoration: underline; line-height: 1.8; }
+        .obs-links a:hover { color: #002244; }
     </style>
 </head>
 <body>
@@ -206,7 +214,34 @@
             <a href="https://www.jma.go.jp/bosai/map.html#contents=typhoon" target="_blank" class="action-btn" style="background:#ff8c00;">台風進路予想</a>
         </div>
     </div>
-
+    
+    <div class="card">
+        <h2>💡 気象台からのコメント</h2>
+        <div class="observatory-comment-box">
+            <div id="obsDatetime" style="color: #666; font-size: 0.8rem; margin-bottom: 5px;"></div>
+            <div id="obsHeadline" style="font-size: 0.95rem; font-weight: bold; color: #333; line-height: 1.6; white-space: pre-wrap; margin-bottom: 15px;">情報を取得しています...</div>
+            
+            <hr style="border-top: 1px dashed #ccc; margin: 15px 0;">
+            
+            <div style="font-size: 0.8rem; color: #555; line-height: 1.5;">
+                <strong>【背景色などについて】</strong><br>
+                淡い赤色は警報発表中、淡い黄色は注意報発表中、白色は警報・注意報発表なしを表しています。<br>
+                発表中の警報・注意報の詳細については下記URLの「気象警報・注意報」でご確認ください。<br>
+                大雨や洪水の警報発表中は、より詳細な地域を下記URLの「キキクル（危険度分布）」でご確認ください。<br><br>
+                
+                <strong>【主な防災情報のURL/リンク】</strong><br>
+                <ul class="obs-links" style="padding-left: 20px; margin-top: 5px; list-style-type: square;">
+                    <li><a id="linkInfo" href="#" target="_blank">府県気象情報：<span id="obsPrefName">--</span></a></li>
+                    <li><a id="linkWarn" href="#" target="_blank">気象警報・注意報：<span id="obsPrefName2">--</span></a></li>
+                    <li><a href="https://www.jma.go.jp/bosai/risk/#elements:land" target="_blank">土砂キキクル（大雨警報（土砂災害）の危険度分布）</a></li>
+                    <li><a href="https://www.jma.go.jp/bosai/risk/#elements:inund" target="_blank">浸水キキクル（大雨警報（浸水害）の危険度分布）</a></li>
+                    <li><a href="https://www.jma.go.jp/bosai/risk/#elements:flood" target="_blank">洪水キキクル（洪水警報の危険度分布）</a></li>
+                    <li><a href="https://www.jma.go.jp/bosai/nowc/" target="_blank">雨雲の動き</a> / <a href="https://www.jma.go.jp/bosai/kaiketsu/" target="_blank">今後の雨</a> / <a href="https://www.jma.go.jp/bosai/snow/" target="_blank">今後の雪</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
     <div class="card">
         <h2>8. 24時間以内の変化履歴</h2>
         <div id="historyBox">記録なし</div>
@@ -218,14 +253,12 @@
     let currentName = '高知';
     let isInitialLoad = true;
 
-    // 各府県の代表地点の緯度経度
     const prefCoordinates = {
         "高知": {lat: 33.5597, lon: 133.5311}, "大阪": {lat: 34.6937, lon: 135.5023}, "京都": {lat: 35.0116, lon: 135.7681},
         "兵庫": {lat: 34.6901, lon: 135.1955}, "滋賀": {lat: 35.0178, lon: 135.8546}, "奈良": {lat: 34.6851, lon: 135.8048},
         "和歌山": {lat: 34.2305, lon: 135.1706}, "沖縄": {lat: 26.2124, lon: 127.6809}, "石垣": {lat: 24.3448, lon: 124.1553}
     };
 
-    // 天文イベントリスト
     const ASTRO_EVENTS_2026 = [
         { date: "2026-03-03", name: "皆既月食（日本全国で観測可）", type: "月食" },
         { date: "2026-03-20", name: "春分の日（昼夜の長さがほぼ同じ）", type: "季節" },
@@ -239,9 +272,6 @@
         { date: "2026-12-24", name: "満月（今年最大の満月/スーパームーン）", type: "月" }
     ];
 
-    // ==========================================
-    // 💡 新機能：気象庁テロップ番号を正しいSVG画像に変換する辞書
-    // ==========================================
     const jmaIconMap = {
         "100":"100", "101":"101", "102":"102", "103":"102", "104":"104", "105":"104", "106":"102", "107":"102", "108":"102",
         "110":"110", "111":"111", "112":"112", "113":"112", "114":"112", "115":"112", "116":"112", "117":"112", "118":"112", "119":"112",
@@ -397,6 +427,43 @@
     function renderForecasts(fData) {
         let dailyData = {}; 
         try {
+            // 💡 降水確率（PoP）を抽出してマップに保存する処理（関数の喧嘩をしないように独立！）
+            let popMap = {};
+            try {
+                // 短期の降水確率を取得 (気象庁データの深い階層を正しく探すように修正！)
+                const shortPopSeries = fData[0]?.timeSeries?.find(s => s.areas && s.areas[0] && s.areas[0].pops);
+                if (shortPopSeries) {
+                    shortPopSeries.timeDefines.forEach((t, i) => {
+                        const dateStr = t.split('T')[0];
+                        const popStr = shortPopSeries.areas[0].pops[i];
+                        if (popStr !== undefined && popStr !== "") {
+                            const popVal = parseInt(popStr);
+                            if (!isNaN(popVal)) {
+                                if (popMap[dateStr] === undefined || popVal > popMap[dateStr]) {
+                                    popMap[dateStr] = popVal;
+                                }
+                            }
+                        }
+                    });
+                }
+                // 週間の降水確率を取得
+                const weeklyPopSeries = fData[1]?.timeSeries?.find(s => s.areas && s.areas[0] && s.areas[0].pops);
+                if (weeklyPopSeries) {
+                    weeklyPopSeries.timeDefines.forEach((t, i) => {
+                        const dateStr = t.split('T')[0];
+                        const popStr = weeklyPopSeries.areas[0].pops[i];
+                        if (popStr !== undefined && popStr !== "") {
+                            const popVal = parseInt(popStr);
+                            if (!isNaN(popVal)) {
+                                if (popMap[dateStr] === undefined || popVal > popMap[dateStr]) {
+                                    popMap[dateStr] = popVal;
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (e) { console.warn("PoP Extraction skipped:", e); }
+
             if (fData[0] && fData[0].timeSeries && fData[0].timeSeries[0]) {
                 const shortWeather = fData[0].timeSeries[0];
                 shortWeather.timeDefines.forEach((time, index) => {
@@ -454,15 +521,17 @@
             Object.keys(dailyData).sort().forEach(dateStr => {
                 const d = dailyData[dateStr];
                 
-                // 💡 今回の修正ポイント：ここでテロップ番号を安全に変換するよ！
-                // もし辞書にない未知の番号が来たら、頭文字の番号（晴れ=100等）に変換してエラーを防ぐよ。
                 const mappedCode = jmaIconMap[d.weatherCode] || (String(d.weatherCode).charAt(0) + "00");
                 const iconUrl = `https://www.jma.go.jp/bosai/forecast/img/${mappedCode}.svg`;
                 
+                // 💡 マップから降水確率を取り出して表示文字を作る（データが無ければ --%）
+                const popDisplay = popMap[dateStr] !== undefined ? `${popMap[dateStr]}%` : "--%";
+
                 const cardHtml = `
                     <div class="forecast-day">
                         <div class="forecast-date">${d.dateText}</div>
                         <img src="${iconUrl}" class="weather-img" alt="天気アイコン" onerror="this.style.display='none'">
+                        <div class="pop-box">💧 ${popDisplay}</div>
                         ${d.weatherText !== "ー" ? `<div class="weather-text">${d.weatherText}</div>` : ""}
                         <div class="temp-box"><span class="temp-max">${d.maxTemp}</span> / <span class="temp-min">${d.minTemp}</span></div>
                     </div>
@@ -484,7 +553,18 @@
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             el.classList.add('active');
         }
+        
+        // 気象台コメントのリンクなどの更新
         document.getElementById('linkAlert').href = `https://www.jma.go.jp/bosai/warning/#area_type=offices&area_code=${code}`;
+        document.getElementById('linkInfo').href = `https://www.jma.go.jp/bosai/information/#area_type=offices&area_code=${code}`;
+        document.getElementById('linkWarn').href = `https://www.jma.go.jp/bosai/warning/#area_type=offices&area_code=${code}`;
+        
+        // 府県名の自動生成（大阪・京都は「府」、石垣は「沖縄県」、他は「県」）
+        let prefFullName = name + "県";
+        if (name === "大阪" || name === "京都") prefFullName = name + "府";
+        if (name === "石垣") prefFullName = "沖縄県";
+        document.getElementById('obsPrefName').innerText = prefFullName;
+        document.getElementById('obsPrefName2').innerText = prefFullName;
 
         document.getElementById('prefCurrentDesc').innerText = "取得中...";
         document.getElementById('prefCurrentTemp').innerText = "--℃";
@@ -503,6 +583,7 @@
             renderForecasts(fData);
             document.getElementById('overview').innerText = oData.text || "概況なし";
 
+            // 注意報・警報の完璧な抽出ループ
             let alerts = [];
             function findWarnings(obj) {
                 if(Array.isArray(obj)) obj.forEach(findWarnings);
@@ -536,6 +617,24 @@
             infoBox.innerHTML = oData.headlineText ? 
                 `<div class="warning-badge" style="border-left-color:#17a2b8; background:#d1ecf1;">📣 ${oData.headlineText}</div>` : 
                 `<div class="safe-badge" style="background:#e2e3e5; color:#383d41;">特別な気象情報はありません</div>`;
+
+            // 💡 気象台コメントの抽出と表示
+            if (wData) {
+                if (wData.reportDatetime) {
+                    const d = new Date(wData.reportDatetime);
+                    const days = ['日', '月', '火', '水', '木', '金', '土'];
+                    const dateStr = `${d.getFullYear()}年${String(d.getMonth()+1).padStart(2,'0')}月${String(d.getDate()).padStart(2,'0')}日(${days[d.getDay()]})${String(d.getHours()).padStart(2,'0')}時${String(d.getMinutes()).padStart(2,'0')}分`;
+                    document.getElementById('obsDatetime').innerText = dateStr;
+                } else {
+                    document.getElementById('obsDatetime').innerText = "";
+                }
+                
+                if (wData.headlineText) {
+                    document.getElementById('obsHeadline').innerText = wData.headlineText;
+                } else {
+                    document.getElementById('obsHeadline').innerText = "現在、気象台からの特別な発表（防災情報の見通しなど）はありません。";
+                }
+            }
 
         } catch (e) { console.error("通信エラー:", e); }
         showHistory(code);
