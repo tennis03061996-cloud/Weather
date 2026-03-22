@@ -590,16 +590,16 @@
 
     // スワイプ機能
     let touchstartX = 0;
-    document.addEventListener('touchstart', e => { touchstartX = e.changedTouches[0].screenX; }, {passive: true});
-    document.addEventListener('touchend', e => {
-        let deltaX = touchstartX - e.changedTouches[0].screenX;
-        if (Math.abs(deltaX) > 80) {
-            const tabs = Array.from(document.querySelectorAll('.tab'));
-            const idx = tabs.findIndex(t => t.classList.contains('active'));
-            if (deltaX < 0 && idx < tabs.length - 1) tabs[idx + 1].click();
-            else if (deltaX > 0 && idx > 0) tabs[idx - 1].click();
-        }
-    }, {passive: true});
+    //document.addEventListener('touchstart', e => { touchstartX = e.changedTouches[0].screenX; }, {passive: true});
+    //document.addEventListener('touchend', e => {
+        //let deltaX = touchstartX - e.changedTouches[0].screenX;
+        //if (Math.abs(deltaX) > 80) {
+            //const tabs = Array.from(document.querySelectorAll('.tab'));
+            //const idx = tabs.findIndex(t => t.classList.contains('active'));
+            //if (deltaX < 0 && idx < tabs.length - 1) tabs[idx + 1].click();
+            //else if (deltaX > 0 && idx > 0) tabs[idx - 1].click();
+        //}
+  //  }, {passive: true});
 
     window.onload = () => {
         updateMoonHeader();
