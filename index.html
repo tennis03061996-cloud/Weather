@@ -14,7 +14,7 @@
 
     <style>
         :root { --primary: #004080; --warning: #d9534f; --accent: #ffc107; --bg: #f0f2f5; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background: var(--bg); color: #333; padding-bottom: 60px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background: var(--bg); color: #333; padding-bottom: 60px; overflow-x: hidden; }
         
         /* ヘッダーのレイアウト */
         header { background: var(--primary); color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
@@ -31,7 +31,7 @@
         .gps-btn:active { transform: scale(0.95); }
 
         /* エリア選択タブ */
-        .tabs-container { overflow-x: auto; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 56px; z-index: 999; }
+        .tabs-container { overflow-x: auto; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 56px; z-index: 999; scroll-behavior: smooth; }
         .tabs { display: flex; width: max-content; }
         .tab { padding: 12px 15px; cursor: pointer; white-space: nowrap; transition: 0.3s; border-right: 1px solid #eee; font-weight: bold; display: flex; align-items: center; gap: 5px; }
         .tab.active { background: #e7f0fa; color: var(--primary); border-bottom: 4px solid var(--primary); }
@@ -97,7 +97,7 @@
         .event-tag.today { background: #ff4757; color: #fff; }
 
         /* 気象台コメント専用 */
-        .observatory-comment-box { background: #fffdf0; border: 1px solid #ffeeba; border-radius: 8px; padding: 15px; border-left: 5px solid #ffc107; }
+        .observatory-comment-box { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px; border-left: 5px solid #28a745; transition: background-color 0.5s ease, border-color 0.5s ease; }
         .obs-links a { color: #004080; text-decoration: underline; line-height: 1.8; }
         .obs-links a:hover { color: #002244; }
     </style>
@@ -163,7 +163,7 @@
 
 <div class="container">
     <div class="card">
-        <h2>1. 短期天気予報・気温 (<span id="areaLabel">高知</span>)</h2>
+        <h2>1. 短期天気予報・気温 (<span id="areaLabel">読込中</span>)</h2>
         <div class="current-weather-box" id="currentPrefBox">
             <div>
                 <p style="margin:0; font-size:0.8rem; color:#0369a1;">現在の実況 (Open-Meteo)</p>
@@ -215,31 +215,18 @@
         </div>
     </div>
     
-    <div class="card">
-        <h2>💡 気象台からのコメント</h2>
-        <div class="observatory-comment-box">
-            <div id="obsDatetime" style="color: #666; font-size: 0.8rem; margin-bottom: 5px;"></div>
-            <div id="obsHeadline" style="font-size: 0.95rem; font-weight: bold; color: #333; line-height: 1.6; white-space: pre-wrap; margin-bottom: 15px;">情報を取得しています...</div>
-            
-            <hr style="border-top: 1px dashed #ccc; margin: 15px 0;">
-            
-            <div style="font-size: 0.8rem; color: #555; line-height: 1.5;">
-                <strong>【背景色などについて】</strong><br>
-                淡い赤色は警報発表中、淡い黄色は注意報発表中、白色は警報・注意報発表なしを表しています。<br>
-                発表中の警報・注意報の詳細については下記URLの「気象警報・注意報」でご確認ください。<br>
-                大雨や洪水の警報発表中は、より詳細な地域を下記URLの「キキクル（危険度分布）」でご確認ください。<br><br>
-                
-                <strong>【主な防災情報のURL/リンク】</strong><br>
-                <ul class="obs-links" style="padding-left: 20px; margin-top: 5px; list-style-type: square;">
-                    <li><a id="linkInfo" href="#" target="_blank">府県気象情報：<span id="obsPrefName">--</span></a></li>
-                    <li><a id="linkWarn" href="#" target="_blank">気象警報・注意報：<span id="obsPrefName2">--</span></a></li>
-                    <li><a href="https://www.jma.go.jp/bosai/risk/#elements:land" target="_blank">土砂キキクル（大雨警報（土砂災害）の危険度分布）</a></li>
-                    <li><a href="https://www.jma.go.jp/bosai/risk/#elements:inund" target="_blank">浸水キキクル（大雨警報（浸水害）の危険度分布）</a></li>
-                    <li><a href="https://www.jma.go.jp/bosai/risk/#elements:flood" target="_blank">洪水キキクル（洪水警報の危険度分布）</a></li>
-                    <li><a href="https://www.jma.go.jp/bosai/nowc/" target="_blank">雨雲の動き</a> / <a href="https://www.jma.go.jp/bosai/kaiketsu/" target="_blank">今後の雨</a> / <a href="https://www.jma.go.jp/bosai/snow/" target="_blank">今後の雪</a></li>
-                </ul>
-            </div>
-        </div>
+<div class="card">
+    <h2>💡 気象台からのコメント</h2>
+    <div class="observatory-comment-box" id="observatoryBox" style="padding: 0; overflow: hidden; height: 350px;">
+        <iframe id="commentIframe" style="width: 100%; height: 100%; border: none; background: #fff;"></iframe>
+    </div>
+    <div style="margin-top: 10px; font-size: 0.8rem;">
+        <ul class="obs-links" style="padding-left: 20px; list-style-type: square;">
+            <li><a id="linkInfo" href="#" target="_blank">府県気象情報：<span id="obsPrefName">--</span></a></li>
+            <li><a id="linkWarn" href="#" target="_blank">気象警報・注意報：<span id="obsPrefName2">--</span></a></li>
+        </ul>
+    </div>
+</div>
     </div>
     
     <div class="card">
@@ -249,8 +236,8 @@
 </div>
 
 <script>
-    let currentCode = '390000';
-    let currentName = '高知';
+    let currentCode = '270000'; // 💡 初期値を大阪に設定
+    let currentName = '大阪';
     let isInitialLoad = true;
 
     const prefCoordinates = {
@@ -427,10 +414,8 @@
     function renderForecasts(fData) {
         let dailyData = {}; 
         try {
-            // 💡 降水確率（PoP）を抽出してマップに保存する処理（関数の喧嘩をしないように独立！）
             let popMap = {};
             try {
-                // 短期の降水確率を取得 (気象庁データの深い階層を正しく探すように修正！)
                 const shortPopSeries = fData[0]?.timeSeries?.find(s => s.areas && s.areas[0] && s.areas[0].pops);
                 if (shortPopSeries) {
                     shortPopSeries.timeDefines.forEach((t, i) => {
@@ -446,7 +431,6 @@
                         }
                     });
                 }
-                // 週間の降水確率を取得
                 const weeklyPopSeries = fData[1]?.timeSeries?.find(s => s.areas && s.areas[0] && s.areas[0].pops);
                 if (weeklyPopSeries) {
                     weeklyPopSeries.timeDefines.forEach((t, i) => {
@@ -524,7 +508,6 @@
                 const mappedCode = jmaIconMap[d.weatherCode] || (String(d.weatherCode).charAt(0) + "00");
                 const iconUrl = `https://www.jma.go.jp/bosai/forecast/img/${mappedCode}.svg`;
                 
-                // 💡 マップから降水確率を取り出して表示文字を作る（データが無ければ --%）
                 const popDisplay = popMap[dateStr] !== undefined ? `${popMap[dateStr]}%` : "--%";
 
                 const cardHtml = `
@@ -554,12 +537,10 @@
             el.classList.add('active');
         }
         
-        // 気象台コメントのリンクなどの更新
         document.getElementById('linkAlert').href = `https://www.jma.go.jp/bosai/warning/#area_type=offices&area_code=${code}`;
         document.getElementById('linkInfo').href = `https://www.jma.go.jp/bosai/information/#area_type=offices&area_code=${code}`;
         document.getElementById('linkWarn').href = `https://www.jma.go.jp/bosai/warning/#area_type=offices&area_code=${code}`;
         
-        // 府県名の自動生成（大阪・京都は「府」、石垣は「沖縄県」、他は「県」）
         let prefFullName = name + "県";
         if (name === "大阪" || name === "京都") prefFullName = name + "府";
         if (name === "石垣") prefFullName = "沖縄県";
@@ -583,7 +564,6 @@
             renderForecasts(fData);
             document.getElementById('overview').innerText = oData.text || "概況なし";
 
-            // 注意報・警報の完璧な抽出ループ
             let alerts = [];
             function findWarnings(obj) {
                 if(Array.isArray(obj)) obj.forEach(findWarnings);
@@ -598,7 +578,22 @@
             alerts = [...new Set(alerts)];
 
             const alertBox = document.getElementById('alertContainer');
+            const obsBox = document.getElementById('observatoryBox'); 
+
             if(alerts.length > 0) {
+                let hasWarning = alerts.some(a => a.includes("警報"));
+                let hasAdvisory = alerts.some(a => a.includes("注意報"));
+
+                if(hasWarning) {
+                    obsBox.style.backgroundColor = "#ffebf0"; 
+                    obsBox.style.borderLeftColor = "#ff2800"; 
+                    obsBox.style.borderColor = "#ffcccc";
+                } else if(hasAdvisory) {
+                    obsBox.style.backgroundColor = "#ffffe0"; 
+                    obsBox.style.borderLeftColor = "#f2e700"; 
+                    obsBox.style.borderColor = "#eeeecc";
+                }
+
                 let aHtml = "";
                 alerts.forEach(a => {
                     const isWarning = a.includes("警報") || a.includes("特別");
@@ -609,6 +604,9 @@
                 alertBox.innerHTML = aHtml;
                 saveHistory(code, alerts.join(", "));
             } else {
+                obsBox.style.backgroundColor = "#f8f9fa"; 
+                obsBox.style.borderLeftColor = "#28a745"; 
+                obsBox.style.borderColor = "#e9ecef";
                 alertBox.innerHTML = `<div class="safe-badge">🟢 現在、警報・注意報はありません</div>`;
                 saveHistory(code, "発表なし");
             }
@@ -618,23 +616,38 @@
                 `<div class="warning-badge" style="border-left-color:#17a2b8; background:#d1ecf1;">📣 ${oData.headlineText}</div>` : 
                 `<div class="safe-badge" style="background:#e2e3e5; color:#383d41;">特別な気象情報はありません</div>`;
 
-            // 💡 気象台コメントの抽出と表示
-            if (wData) {
-                if (wData.reportDatetime) {
-                    const d = new Date(wData.reportDatetime);
-                    const days = ['日', '月', '火', '水', '木', '金', '土'];
-                    const dateStr = `${d.getFullYear()}年${String(d.getMonth()+1).padStart(2,'0')}月${String(d.getDate()).padStart(2,'0')}日(${days[d.getDay()]})${String(d.getHours()).padStart(2,'0')}時${String(d.getMinutes()).padStart(2,'0')}分`;
-                    document.getElementById('obsDatetime').innerText = dateStr;
-                } else {
-                    document.getElementById('obsDatetime').innerText = "";
-                }
-                
-                if (wData.headlineText) {
-                    document.getElementById('obsHeadline').innerText = wData.headlineText;
-                } else {
-                    document.getElementById('obsHeadline').innerText = "現在、気象台からの特別な発表（防災情報の見通しなど）はありません。";
-                }
+// 💡 updateArea 関数内のコメント取得部分をこれに差し替え
+try {
+    const ryRes = await fetch(`https://www.jma.go.jp/bosai/forecaster_comment/data/comments/${code}.txt`);
+    const iframe = document.getElementById('commentIframe');
+    
+    if (ryRes.ok) {
+        const buffer = await ryRes.arrayBuffer();
+        const decoder = new TextDecoder("utf-8");
+        const fullHtml = decoder.decode(buffer); // 完璧な日本語HTML文字列
+
+        // 💡 iframeの中に「そのまま」HTMLを流し込む！
+        // srcdoc を使うと、文字列をそのままHTMLドキュメントとして表示できるよ。
+        if (iframe) {
+            iframe.srcdoc = fullHtml;
+        }
+    } else {
+        if (iframe) iframe.srcdoc = "<html><body style='font-family:sans-serif;font-size:0.9rem;color:#666;'>現在、コメントはありません。</body></html>";
+    }
+} catch(e) { 
+    console.warn("コメントの取得でエラーが出たけど、他の処理は続けるよ！", e); 
+}
+
+            if (wData && wData.reportDatetime) {
+                const d = new Date(wData.reportDatetime);
+                const days = ['日', '月', '火', '水', '木', '金', '土'];
+                const dateStr = `${d.getFullYear()}年${String(d.getMonth()+1).padStart(2,'0')}月${String(d.getDate()).padStart(2,'0')}日(${days[d.getDay()]})${String(d.getHours()).padStart(2,'0')}時${String(d.getMinutes()).padStart(2,'0')}分`;
+                document.getElementById('obsDatetime').innerText = dateStr;
+            } else {
+                document.getElementById('obsDatetime').innerText = "";
             }
+            
+            document.getElementById('obsHeadline').innerText = ryText; // 正規のコメントテキストを挿入
 
         } catch (e) { console.error("通信エラー:", e); }
         showHistory(code);
@@ -676,10 +689,60 @@
         if (document.visibilityState === "visible") { updateArea(currentCode, currentName, null); loadWeatherMap(); }
     });
 
+    // 💡 新機能：スマホ用スワイプ切り替えロジック
+    let touchstartX = 0;
+    let touchstartY = 0;
+    let touchendX = 0;
+    let touchendY = 0;
+
+    document.addEventListener('touchstart', e => {
+        touchstartX = e.changedTouches[0].screenX;
+        touchstartY = e.changedTouches[0].screenY;
+    }, {passive: true});
+
+    document.addEventListener('touchend', e => {
+        touchendX = e.changedTouches[0].screenX;
+        touchendY = e.changedTouches[0].screenY;
+        
+        const deltaX = touchendX - touchstartX;
+        const deltaY = Math.abs(touchendY - touchstartY);
+        
+        // 横スワイプが60px以上で、縦のスクロールより明確に横に動かした場合のみ発動
+        if (Math.abs(deltaX) > 60 && Math.abs(deltaX) > deltaY) {
+            const tabs = Array.from(document.querySelectorAll('.tab'));
+            const activeIndex = tabs.findIndex(t => t.classList.contains('active'));
+            
+            if (deltaX < 0) { // 左へスワイプ (次のタブへ)
+                if (activeIndex < tabs.length - 1) {
+                    tabs[activeIndex + 1].click();
+                    tabs[activeIndex + 1].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                }
+            } else if (deltaX > 0) { // 右へスワイプ (前のタブへ)
+                if (activeIndex > 0) {
+                    tabs[activeIndex - 1].click();
+                    tabs[activeIndex - 1].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                }
+            }
+        }
+    }, {passive: true});
+
     window.onload = () => {
         updateMoonHeader();
         loadWeatherMap();
-        updateArea('390000', '高知', document.querySelector('.tab'));
+        
+        // 💡 新機能：初期表示を大阪にするロジック
+        const tabs = document.querySelectorAll('.tab');
+        let defaultTab = null;
+        tabs.forEach(t => { if(t.innerText.includes('大阪')) defaultTab = t; });
+        
+        if (defaultTab) {
+            defaultTab.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'center' });
+            updateArea('270000', '大阪', defaultTab);
+        } else {
+            // 大阪がない場合のフェールセーフ
+            updateArea('390000', '高知', tabs[0]);
+        }
+        
         scheduleNextUpdate();
 
         if (isInitialLoad) {
