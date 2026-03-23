@@ -45,9 +45,14 @@
         .current-desc { font-size: 0.9rem; color: #0369a1; margin: 0; font-weight: bold; }
 
         .forecast-container { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; margin-top: 10px; }
-        .forecast-day { background: #fdfdfd; border: 1px solid #eaeaea; border-radius: 8px; padding: 12px; min-width: 100px; text-align: center; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .forecast-day { background: #fdfdfd; border: 1px solid #eaeaea; border-radius: 8px; padding: 12px; min-width: 140px; text-align: center; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .forecast-date { font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; color: #555; }
         .weather-img { width: 50px; height: 50px; display: block; margin: 0 auto; }
+        
+        .pop-table { width: 100%; border-collapse: collapse; margin: 8px 0; background: #fff; font-size: 0.65rem; text-align: center; border-radius: 4px; overflow: hidden; }
+        .pop-table th { background: #e6f2ff; color: #004080; border: 1px solid #b3d9ff; padding: 3px 1px; font-weight: bold; }
+        .pop-table td { border: 1px solid #b3d9ff; padding: 3px 1px; color: #333; }
+
         .pop-box { font-size: 0.8rem; color: #0066cc; margin: 5px 0; font-weight: bold; background: #e6f2ff; border-radius: 4px; padding: 2px 0; }
         .weather-text { font-size: 0.8rem; margin: 5px 0; min-height: 2.4em; display: flex; align-items: center; justify-content: center; line-height: 1.2; }
         .temp-box { font-size: 0.9rem; margin-top: 5px; background: #f4f4f4; border-radius: 4px; padding: 4px; }
@@ -238,7 +243,7 @@
         { date: "2026-10-06", name: "中秋の名月", type: "月" }
     ];
 
-const jmaIconMap = {
+    const jmaIconMap = {
         "100":"100", "101":"101", "102":"102", "103":"102", "104":"104", "105":"104", "106":"102", "107":"102", "108":"102",
         "110":"110", "111":"110", "112":"112", "113":"112", "114":"112", "115":"114", "116":"114", "117":"114", "118":"112", "119":"112",
         "120":"102", "121":"102", "122":"112", "123":"112", "124":"112", "125":"112", "126":"112", "127":"112", "128":"112", "129":"112",
@@ -266,6 +271,24 @@ const jmaIconMap = {
         return {text: "不明", icon: "❓"};
     }
     
+    // 💡 新機能: 天気コードを短いテキストに変換する関数（明後日や週間予報用）
+    function telopToText(code) {
+        const c = String(code);
+        const codeMap = {
+            "100":"晴れ", "101":"晴時々曇", "102":"晴一時雨", "104":"晴一時雪", "110":"晴後時々曇", "111":"晴のち曇", "112":"晴のち雨", "115":"晴のち雪", "130":"晴朝夕曇",
+            "200":"曇り", "201":"曇時々晴", "202":"曇一時雨", "204":"曇一時雪", "210":"曇後時々晴", "211":"曇のち晴", "212":"曇のち雨", "215":"曇のち雪",
+            "300":"雨", "301":"雨時々晴", "302":"雨時々止む", "303":"雨時々雪", "311":"雨のち晴", "313":"雨のち曇", "314":"雨のち雪",
+            "400":"雪", "401":"雪時々晴", "402":"雪時々止む", "403":"雪時々雨", "411":"雪のち晴", "413":"雪のち曇", "414":"雪のち雨"
+        };
+        // マップにあればそれを返し、なければ最初の1桁で大まかに返すよ！
+        if (codeMap[c]) return codeMap[c];
+        const first = c.charAt(0);
+        if(first === "1") return "晴れ";
+        if(first === "2") return "曇り";
+        if(first === "3") return "雨";
+        if(first === "4") return "雪";
+        return "不明";
+    }
     
     const warnMap = { "03":"大雨警報","04":"洪水警報","05":"暴風警報","06":"暴風雪警報","07":"大雪警報","08":"波浪警報","09":"高潮警報","10":"大雨注意報","12":"大雪注意報","14":"雷注意報","15":"強風注意報","18":"洪水注意報","21":"乾燥注意報" };
 
@@ -374,7 +397,6 @@ const jmaIconMap = {
             const oData = await oRes.json();
             const wData = await wRes.json();
 
-            // 💡 ズレない「最強の気温・降水確率抽出ロジック」を完全復活！
             let dailyData = {}; 
             let popMap = {};
 
@@ -406,6 +428,34 @@ const jmaIconMap = {
                         }
                     });
                 }
+
+                // 時間帯ごとの降水確率
+                if (shortPopSeries) {
+                    shortPopSeries.timeDefines.forEach((t, i) => {
+                        const dateStr = t.split('T')[0];
+                        const timeHourStr = t.split('T')[1].substring(0, 2);
+                        const popStr = shortPopSeries.areas[0].pops[i];
+                        
+                        if (!dailyData[dateStr]) {
+                            dailyData[dateStr] = { popsArray: ["-", "-", "-", "-"] };
+                        }
+                        if (!dailyData[dateStr].popsArray) {
+                            dailyData[dateStr].popsArray = ["-", "-", "-", "-"];
+                        }
+
+                        if (popStr !== undefined && popStr !== "") {
+                            let popIdx = -1;
+                            if (timeHourStr === "00") popIdx = 0;
+                            else if (timeHourStr === "06") popIdx = 1;
+                            else if (timeHourStr === "12") popIdx = 2;
+                            else if (timeHourStr === "18") popIdx = 3;
+                            
+                            if (popIdx !== -1) {
+                                dailyData[dateStr].popsArray[popIdx] = popStr + "%";
+                            }
+                        }
+                    });
+                }
             } catch (e) { console.warn("降水確率の抽出スキップ:", e); }
 
             // 短期の天気コードを保存
@@ -421,16 +471,24 @@ const jmaIconMap = {
                     if(dateStr === todayStr) dayLabel = "今日";
                     else if(dateStr === tmrwStr) dayLabel = "明日";
                     
+                    if (!dailyData[dateStr]) dailyData[dateStr] = {};
+                    
+                    // 💡 もし詳しい予報文があればそれを使うし、無ければ天気コードから翻訳して補完！
+                    let wText = shortWeather.areas[0].weathers ? shortWeather.areas[0].weathers[index] : telopToText(shortWeather.areas[0].weatherCodes[index]);
+                    
                     dailyData[dateStr] = {
+                        ...dailyData[dateStr],
                         dateText: dayLabel,
                         weatherCode: shortWeather.areas[0].weatherCodes[index],
-                        weatherText: shortWeather.areas[0].weathers ? shortWeather.areas[0].weathers[index] : "ー",
-                        minTemp: "-", maxTemp: "-"
+                        weatherText: wText,
+                        minTemp: dailyData[dateStr].minTemp || "-", 
+                        maxTemp: dailyData[dateStr].maxTemp || "-",
+                        popsArray: dailyData[dateStr].popsArray || ["-", "-", "-", "-"]
                     };
                 });
             }
 
-            // 短期の気温を保存（時間帯のズレにも対応！）
+            // 短期の気温を保存
             if (fData[0] && fData[0].timeSeries && fData[0].timeSeries.length > 2) {
                 const shortTemps = fData[0].timeSeries[2];
                 if (shortTemps && shortTemps.timeDefines && shortTemps.areas && shortTemps.areas[0].temps) {
@@ -453,13 +511,31 @@ const jmaIconMap = {
                 if (weeklyWeather && weeklyWeather.timeDefines) {
                     weeklyWeather.timeDefines.forEach((time, index) => {
                         const dateStr = time.split('T')[0];
+                        const code = weeklyWeather.areas[0].weatherCodes[index];
+                        
                         if (!dailyData[dateStr]) {
+                            dailyData[dateStr] = {};
+                        }
+                        
+                        // 💡 予報文がまだ無い場合は、ここで天気コードから翻訳して入れる！
+                        let wText = dailyData[dateStr].weatherText;
+                        if (!wText || wText === "ー") {
+                            wText = telopToText(code);
+                        }
+
+                        if (!dailyData[dateStr].weatherCode) {
                             const d = new Date(time);
                             dailyData[dateStr] = {
-                                dateText: `${d.getMonth()+1}/${d.getDate()}`,
-                                weatherCode: weeklyWeather.areas[0].weatherCodes[index],
-                                weatherText: "ー", minTemp: "-", maxTemp: "-"
+                                ...dailyData[dateStr],
+                                dateText: dailyData[dateStr].dateText || `${d.getMonth()+1}/${d.getDate()}`,
+                                weatherCode: code,
+                                weatherText: wText, 
+                                minTemp: dailyData[dateStr].minTemp || "-", 
+                                maxTemp: dailyData[dateStr].maxTemp || "-"
                             };
+                        } else {
+                            // もし短期の方でコードだけ取れていてテキストが空だった場合の保険
+                            dailyData[dateStr].weatherText = wText;
                         }
                     });
                 }
@@ -475,21 +551,33 @@ const jmaIconMap = {
                 }
             }
 
-            // HTMLの生成（短期3日分、残りを週間へ）
+            // HTMLの生成
             let shortHtml = ""; let weeklyHtml = ""; let dayCount = 0;
             Object.keys(dailyData).sort().forEach(dateStr => {
                 const d = dailyData[dateStr];
+                if (!d.weatherCode) return; // データ不足の日はスキップ
+
                 const mappedCode = jmaIconMap[d.weatherCode] || (String(d.weatherCode).charAt(0) + "00");
                 const iconUrl = `https://www.jma.go.jp/bosai/forecast/img/${mappedCode}.svg`;
                 const popDisplay = popMap[dateStr] !== undefined ? `${popMap[dateStr]}%` : "--%";
 
                 if (dayCount < 3) {
+                    let popSectionHtml = `<div class="pop-box">☔ ${popDisplay}</div>`;
+                    if (dayCount < 2 && d.popsArray) {
+                        popSectionHtml = `
+                            <table class="pop-table">
+                                <tr><th>0-6</th><th>6-12</th><th>12-18</th><th>18-24</th></tr>
+                                <tr><td>${d.popsArray[0]}</td><td>${d.popsArray[1]}</td><td>${d.popsArray[2]}</td><td>${d.popsArray[3]}</td></tr>
+                            </table>
+                        `;
+                    }
+
                     shortHtml += `
                         <div class="forecast-day">
                             <div class="forecast-date">${d.dateText}</div>
                             <img src="${iconUrl}" class="weather-img" alt="天気アイコン" onerror="this.style.display='none'">
                             <div class="weather-text">${d.weatherText}</div>
-                            <div class="pop-box">☔ ${popDisplay}</div>
+                            ${popSectionHtml}
                             <div class="temp-box"><span class="temp-max">${d.maxTemp}${d.maxTemp!=="-"?"℃":""}</span> / <span class="temp-min">${d.minTemp}${d.minTemp!=="-"?"℃":""}</span></div>
                         </div>
                     `;
@@ -498,7 +586,7 @@ const jmaIconMap = {
                         <div class="forecast-day">
                             <div class="forecast-date">${d.dateText}</div>
                             <img src="${iconUrl}" class="weather-img" alt="天気アイコン" onerror="this.style.display='none'">
-                            <div class="pop-box" style="margin-top:2px;">☔ ${popDisplay}</div>
+                            <div class="weather-text">${d.weatherText}</div> <div class="pop-box" style="margin-top:2px;">☔ ${popDisplay}</div>
                             <div class="temp-box" style="font-size:0.8rem; padding:2px;">
                                 <span class="temp-max">${d.maxTemp}${d.maxTemp!=="-"?"℃":""}</span>/<br><span class="temp-min">${d.minTemp}${d.minTemp!=="-"?"℃":""}</span>
                             </div>
