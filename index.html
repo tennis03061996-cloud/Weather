@@ -36,13 +36,6 @@
         .tab.active { background: #e7f0fa; color: var(--primary); border-bottom: 4px solid var(--primary); }
         .area-icon { font-size: 1.2rem; }
 
-        /* 1次細分タブ用のスタイル追加 */
-        .sub-tabs-container { display: flex; overflow-x: auto; background: #f8f9fa; border-bottom: 1px solid #ddd; padding: 8px 10px; gap: 8px; scroll-behavior: smooth; position: sticky; top: 103px; z-index: 998; }
-        .sub-tabs-container::-webkit-scrollbar { display: none; }
-        .sub-tabs-container { -ms-overflow-style: none; scrollbar-width: none; }
-        .sub-tab { padding: 6px 14px; font-size: 0.85rem; border-radius: 20px; background: #fff; border: 1px solid #ccc; cursor: pointer; white-space: nowrap; transition: 0.2s; color: #555; font-weight: bold; }
-        .sub-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
-
         .container { padding: 12px; max-width: 800px; margin: 0 auto; }
         .card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
         h2 { font-size: 1rem; margin-top: 0; color: var(--primary); border-left: 5px solid var(--primary); padding-left: 10px; margin-bottom: 12px; }
@@ -103,6 +96,10 @@
         .gps-temp-large { font-size: 2.5rem; font-weight: bold; color: var(--primary); margin: 0; }
 
         .observatory-comment-box { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; }
+        
+        .sub-area-card { border: 1px solid #e0e0e0; background: #fafafa; border-radius: 8px; padding: 12px; margin-bottom: 15px; }
+        .sub-forecast-title { font-size: 0.95rem; margin: 0 0 10px; color: #0284c7; display: flex; align-items: center; border-bottom: 2px solid #e0f2fe; padding-bottom: 5px; }
+        .sub-forecast-title::before { content: "📍"; font-size: 1.1rem; margin-right: 5px; }
     </style>
 </head>
 <body>
@@ -163,24 +160,26 @@
     </div>
 </div>
 
-<div class="sub-tabs-container" id="subTabsContainer" style="display: none;"></div>
-
 <div class="container">
     <div class="card">
-        <h2 id="areaTitle">1. 短期天気予報・気温 (<span id="areaLabel">大阪</span>)</h2>
+        <h2>1. 現在の実況 (<span id="areaLabel">大阪</span>)</h2>
         <div class="current-weather-box">
             <div>
-                <p style="margin:0; font-size:0.8rem; color:#0369a1;">現在の実況</p>
+                <p style="margin:0; font-size:0.8rem; color:#0369a1;">取得地点の目安</p>
                 <p class="current-desc" id="prefCurrentDesc">取得中...</p>
             </div>
             <p class="current-temp" id="prefCurrentTemp">--℃</p>
         </div>
-        <div id="shortForecast" class="forecast-container">読込中...</div>
     </div>
 
     <div class="card">
-        <h2>★ 週間天気予報・気温</h2>
-        <div id="weeklyForecast" class="forecast-container">読込中...</div>
+        <h2 style="border-left-color: #0284c7; color: #0284c7;">📅 短期天気予報・気温</h2>
+        <div id="shortForecastsWrapper">読込中...</div>
+    </div>
+
+    <div class="card">
+        <h2 style="border-left-color: #d97706; color: #d97706;">★ 週間天気予報・気温</h2>
+        <div id="weeklyForecastsWrapper">読込中...</div>
     </div>
 
     <div class="card">
@@ -234,8 +233,6 @@
     let currentCode = '270000';
     let currentName = '大阪';
     let isInitialLoad = true;
-    let oldDataCache = {};
-    let currentWeatherData = null; // 取得したデータを保持する変数
 
     const prefCoordinates = {
         "高知": {lat: 33.5597, lon: 133.5311}, "大阪": {lat: 34.6937, lon: 135.5023}, "京都": {lat: 35.0116, lon: 135.7681},
@@ -387,6 +384,7 @@
         currentCode = code;
         currentName = name;
         document.getElementById('loading-overlay').style.display = 'block';
+        document.getElementById('areaLabel').innerText = name;
         
         if(el) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -401,7 +399,7 @@
                 fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${code}.json`),
                 fetch(`https://www.jma.go.jp/bosai/forecast/data/overview_forecast/${code}.json`),
                 fetch(`https://www.jma.go.jp/bosai/warning/data/warning/${code}.json`),
-                fetch(`https://www.jma.go.jp/bosai/information/data/information/${code}.json`).catch(() => null)
+                fetch(`https://www.jma.go.jp/bosai/information/data/information.json`).catch(() => null)
             ]);
 
             const fData = await fRes.json();
@@ -410,299 +408,349 @@
             let iData = null;
             if(iRes && iRes.ok) { iData = await iRes.json(); }
 
-            // 取得したデータをグローバル変数に保存
-            currentWeatherData = { fData, oData, wData, iData, code, name };
-
-            // 1次細分のタブを生成
             const mainAreas = fData[0]?.timeSeries[0]?.areas || [];
-            const subTabsBox = document.getElementById('subTabsContainer');
-            
-            if (mainAreas.length > 1) {
-                subTabsBox.style.display = 'flex';
-                subTabsBox.innerHTML = mainAreas.map((area, idx) => 
-                    `<div class="sub-tab ${idx === 0 ? 'active' : ''}" onclick="renderSubArea(${idx}, '${area.area.code}', this, '${area.area.name}')">${area.area.name}</div>`
-                ).join('');
+            let allShortHtml = "";
+            let allWeeklyHtml = "";
+
+            mainAreas.forEach((area) => {
+                const areaCode = area.area.code;
+                const areaName = area.area.name;
+                
+                let dailyData = {}; 
+                let popMap = {};
+
+                try {
+                    const shortPopSeries = fData[0]?.timeSeries?.find(s => s.areas && s.areas.some(a => a.pops));
+                    if (shortPopSeries) {
+                        const targetArea = shortPopSeries.areas.find(a => a.area.code === areaCode) || shortPopSeries.areas[0];
+                        shortPopSeries.timeDefines.forEach((t, i) => {
+                            const dateStr = t.split('T')[0];
+                            const popStr = targetArea.pops[i];
+                            if (popStr !== undefined && popStr !== "") {
+                                const popVal = parseInt(popStr);
+                                if (!isNaN(popVal)) {
+                                    if (popMap[dateStr] === undefined || popVal > popMap[dateStr]) popMap[dateStr] = popVal;
+                                }
+                            }
+                        });
+                    }
+                    const weeklyPopSeries = fData[1]?.timeSeries?.find(s => s.areas && s.areas.some(a => a.pops));
+                    if (weeklyPopSeries) {
+                        const targetArea = weeklyPopSeries.areas.find(a => a.area.code === areaCode) || weeklyPopSeries.areas[0];
+                        weeklyPopSeries.timeDefines.forEach((t, i) => {
+                            const dateStr = t.split('T')[0];
+                            const popStr = targetArea.pops[i];
+                            if (popStr !== undefined && popStr !== "") {
+                                const popVal = parseInt(popStr);
+                                if (!isNaN(popVal)) {
+                                    if (popMap[dateStr] === undefined || popVal > popMap[dateStr]) popMap[dateStr] = popVal;
+                                }
+                            }
+                        });
+                    }
+
+                    if (shortPopSeries) {
+                        const targetArea = shortPopSeries.areas.find(a => a.area.code === areaCode) || shortPopSeries.areas[0];
+                        shortPopSeries.timeDefines.forEach((t, i) => {
+                            const dateStr = t.split('T')[0];
+                            const timeHourStr = t.split('T')[1].substring(0, 2);
+                            const popStr = targetArea.pops[i];
+                            
+                            if (!dailyData[dateStr]) dailyData[dateStr] = { popsArray: ["-", "-", "-", "-"] };
+                            if (!dailyData[dateStr].popsArray) dailyData[dateStr].popsArray = ["-", "-", "-", "-"];
+
+                            if (popStr !== undefined && popStr !== "") {
+                                let popIdx = -1;
+                                if (timeHourStr === "00") popIdx = 0;
+                                else if (timeHourStr === "06") popIdx = 1;
+                                else if (timeHourStr === "12") popIdx = 2;
+                                else if (timeHourStr === "18") popIdx = 3;
+                                
+                                if (popIdx !== -1) dailyData[dateStr].popsArray[popIdx] = popStr + "%";
+                            }
+                        });
+                    }
+                } catch (e) {}
+
+                if (fData[0] && fData[0].timeSeries && fData[0].timeSeries[0]) {
+                    const shortWeather = fData[0].timeSeries[0];
+                    const targetArea = shortWeather.areas.find(a => a.area.code === areaCode) || shortWeather.areas[0];
+                    
+                    shortWeather.timeDefines.forEach((time, index) => {
+                        const dateStr = time.split('T')[0];
+                        const d = new Date(time);
+                        let dayLabel = `${d.getMonth()+1}/${d.getDate()}`;
+                        const todayStr = new Date().toISOString().split('T')[0];
+                        const tmrw = new Date(); tmrw.setDate(tmrw.getDate()+1);
+                        const tmrwStr = tmrw.toISOString().split('T')[0];
+                        if(dateStr === todayStr) dayLabel = "今日";
+                        else if(dateStr === tmrwStr) dayLabel = "明日";
+                        
+                        if (!dailyData[dateStr]) dailyData[dateStr] = {};
+                        
+                        let wText = targetArea.weathers ? targetArea.weathers[index] : telopToText(targetArea.weatherCodes[index]);
+                        
+                        dailyData[dateStr] = {
+                            ...dailyData[dateStr],
+                            dateText: dayLabel,
+                            weatherCode: targetArea.weatherCodes[index],
+                            weatherText: wText,
+                            minTemp: dailyData[dateStr].minTemp || "-", 
+                            maxTemp: dailyData[dateStr].maxTemp || "-",
+                            popsArray: dailyData[dateStr].popsArray || ["-", "-", "-", "-"]
+                        };
+                    });
+                }
+
+                if (fData[0] && fData[0].timeSeries && fData[0].timeSeries.length > 2) {
+                    const shortTemps = fData[0].timeSeries[2];
+                    if (shortTemps && shortTemps.timeDefines && shortTemps.areas) {
+                        const targetArea = shortTemps.areas.find(a => a.area.code === areaCode) || shortTemps.areas[0];
+                        if (targetArea && targetArea.temps) {
+                            shortTemps.timeDefines.forEach((time, index) => {
+                                const dateStr = time.split('T')[0];
+                                const timeHour = time.split('T')[1].substring(0, 2);
+                                if (dailyData[dateStr] && index < targetArea.temps.length) {
+                                    const tempValue = targetArea.temps[index];
+                                    if (timeHour === "00" || timeHour === "06") { dailyData[dateStr].minTemp = tempValue; }
+                                    else if (timeHour === "09" || timeHour === "12") { dailyData[dateStr].maxTemp = tempValue; }
+                                }
+                            });
+                        }
+                    }
+                }
+
+                if (fData.length > 1 && fData[1].timeSeries) {
+                    const weeklyWeather = fData[1].timeSeries[0];
+                    const weeklyTemps = fData[1].timeSeries.length > 1 ? fData[1].timeSeries[1] : null;
+                    
+                    if (weeklyWeather && weeklyWeather.timeDefines) {
+                        const targetArea = weeklyWeather.areas.find(a => a.area.code === areaCode) || weeklyWeather.areas[0];
+                        weeklyWeather.timeDefines.forEach((time, index) => {
+                            const dateStr = time.split('T')[0];
+                            const wCode = targetArea.weatherCodes[index];
+                            
+                            if (!dailyData[dateStr]) dailyData[dateStr] = {};
+                            
+                            let wText = dailyData[dateStr].weatherText;
+                            if (!wText || wText === "ー") wText = telopToText(wCode);
+
+                            if (!dailyData[dateStr].weatherCode) {
+                                const d = new Date(time);
+                                dailyData[dateStr] = {
+                                    ...dailyData[dateStr],
+                                    dateText: dailyData[dateStr].dateText || `${d.getMonth()+1}/${d.getDate()}`,
+                                    weatherCode: wCode,
+                                    weatherText: wText, 
+                                    minTemp: dailyData[dateStr].minTemp || "-", 
+                                    maxTemp: dailyData[dateStr].maxTemp || "-"
+                                };
+                            } else {
+                                dailyData[dateStr].weatherText = wText;
+                            }
+                        });
+                    }
+                    if (weeklyTemps && weeklyTemps.timeDefines && weeklyTemps.areas) {
+                        const targetArea = weeklyTemps.areas.find(a => a.area.code === areaCode) || weeklyTemps.areas[0];
+                        weeklyTemps.timeDefines.forEach((time, index) => {
+                            const dateStr = time.split('T')[0];
+                            if (dailyData[dateStr]) {
+                                if (targetArea.tempsMin && index < targetArea.tempsMin.length && targetArea.tempsMin[index] !== "") dailyData[dateStr].minTemp = targetArea.tempsMin[index];
+                                if (targetArea.tempsMax && index < targetArea.tempsMax.length && targetArea.tempsMax[index] !== "") dailyData[dateStr].maxTemp = targetArea.tempsMax[index];
+                            }
+                        });
+                    }
+                }
+
+                let shortHtml = ""; let weeklyHtml = ""; let dayCount = 0;
+                Object.keys(dailyData).sort().forEach(dateStr => {
+                    const d = dailyData[dateStr];
+                    if (!d.weatherCode) return;
+
+                    const mappedCode = jmaIconMap[d.weatherCode] || (String(d.weatherCode).charAt(0) + "00");
+                    const iconUrl = `https://www.jma.go.jp/bosai/forecast/img/${mappedCode}.svg`;
+                    const popDisplay = popMap[dateStr] !== undefined ? `${popMap[dateStr]}%` : "--%";
+
+                    if (dayCount < 3) {
+                        let popSectionHtml = `<div class="pop-box">☔ ${popDisplay}</div>`;
+                        if (dayCount < 2 && d.popsArray) {
+                            popSectionHtml = `
+                                <table class="pop-table">
+                                    <tr><th>0-6</th><th>6-12</th><th>12-18</th><th>18-24</th></tr>
+                                    <tr><td>${d.popsArray[0]}</td><td>${d.popsArray[1]}</td><td>${d.popsArray[2]}</td><td>${d.popsArray[3]}</td></tr>
+                                </table>
+                            `;
+                        }
+
+                        shortHtml += `
+                            <div class="forecast-day">
+                                <div class="forecast-date">${d.dateText}</div>
+                                <img src="${iconUrl}" class="weather-img" alt="天気アイコン" onerror="this.style.display='none'">
+                                <div class="weather-text">${d.weatherText}</div>
+                                ${popSectionHtml}
+                                <div class="temp-box"><span class="temp-max">${d.maxTemp}${d.maxTemp!=="-"?"℃":""}</span> / <span class="temp-min">${d.minTemp}${d.minTemp!=="-"?"℃":""}</span></div>
+                            </div>
+                        `;
+                    } else {
+                        weeklyHtml += `
+                            <div class="forecast-day">
+                                <div class="forecast-date">${d.dateText}</div>
+                                <img src="${iconUrl}" class="weather-img" alt="天気アイコン" onerror="this.style.display='none'">
+                                <div class="weather-text">${d.weatherText}</div>
+                                <div class="pop-box" style="margin-top:2px;">☔ ${popDisplay}</div>
+                                <div class="temp-box" style="font-size:0.8rem; padding:2px;">
+                                    <span class="temp-max">${d.maxTemp}${d.maxTemp!=="-"?"℃":""}</span>/<br><span class="temp-min">${d.minTemp}${d.minTemp!=="-"?"℃":""}</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    dayCount++;
+                });
+                
+                allShortHtml += `
+                    <div class="sub-area-card">
+                        <h3 class="sub-forecast-title">${areaName}</h3>
+                        <div class="forecast-container">${shortHtml || "データなし"}</div>
+                    </div>
+                `;
+
+                allWeeklyHtml += `
+                    <div class="sub-area-card">
+                        <h3 class="sub-forecast-title">${areaName}</h3>
+                        <div class="forecast-container">${weeklyHtml || "<div class='info-text'>週間予報データがありません</div>"}</div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('shortForecastsWrapper').innerHTML = allShortHtml;
+            document.getElementById('weeklyForecastsWrapper').innerHTML = allWeeklyHtml;
+
+            // --- 2. 概況 ---
+            document.getElementById('overview').innerText = oData.text || "概況データがありません。";
+
+            // --- 3. 警報・注意報 ---
+            const alertBox = document.getElementById('alertContainer');
+            let alertHtml = "";
+            if(wData.headlineText) {
+                alertHtml += `<div class="warning-badge" style="background:#fffdf0; border-left:5px solid #ffc107; font-weight:normal; color:#333;">📢 <b>注意警戒文</b><br>${wData.headlineText}</div>`;
+            }
+            let alerts = [];
+            function findWarn(o) {
+                if(Array.isArray(o)) o.forEach(findWarn);
+                else if(typeof o === 'object' && o !== null) {
+                    if(o.code && warnMap[o.code] && (o.status==="発表" || o.status==="継続")) alerts.push(warnMap[o.code]);
+                    for(let k in o) findWarn(o[k]);
+                }
+            }
+            findWarn(wData);
+            alerts = [...new Set(alerts)];
+            if(alerts.length > 0) {
+                alerts.forEach(a => {
+                    const isW = a.includes("警報");
+                    alertHtml += `<div class="${isW?'danger-badge':'warning-badge'}">${a}</div>`;
+                });
+            } else if(!wData.headlineText) {
+                alertHtml = `<div class="safe-badge">🟢 現在、警報・注意報はありません</div>`;
+            }
+            alertBox.innerHTML = alertHtml;
+            document.getElementById('linkAlert').href = `https://www.jma.go.jp/bosai/warning/#area_type=offices&area_code=${code}&lang=ja`;
+
+            // --- 4. 発表タイトル (地方と府県の分離・号数取得・リンク化 完了！) ---
+            const infoBox = document.getElementById('infoContainer');
+            if(iData && Array.isArray(iData)) {
+                let infoHtml = "";
+                
+                // 💡 東京都トラップを回避しつつ、正しい県の情報だけを抜き出す！
+                const localInfos = iData.filter(info => {
+                    const title = info.title || info.headTitle || "";
+                    const office = info.publishingOffice || "";
+                    if (name === "京都" && (title.includes("東京都") || office.includes("東京"))) {
+                        return false; // 東京のデータはここで弾く！
+                    }
+                    return title.includes(name) || office.includes(name);
+                });
+
+                if (localInfos.length > 0) {
+                    let fukenHtml = "";
+                    let chihouHtml = "";
+
+                    localInfos.forEach(info => {
+                        // 🕒 発表時刻
+                        let timeStr = "時刻不明";
+                        if (info.reportDatetime) {
+                            const d = new Date(info.reportDatetime);
+                            timeStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                        }
+                        
+                        // 📢 タイトル
+                        const extractedTitle = info.headTitle || info.title || info.controlTitle || '気象情報';
+                        
+                        // 🔢 号数（見つからない場合は随時発表のため空欄）
+                        let issueNoStr = "";
+                        const sNo = info.serialNo || info.serial || info.issueNo || (info.head && info.head.serial);
+                        if (sNo && String(sNo) !== "0" && String(sNo) !== "") {
+                            issueNoStr = ` 第${sNo}号`;
+                        }
+
+                        // 🔗 リンク
+                        const infoUrl = `https://www.jma.go.jp/bosai/information/#area_type=offices&area_code=${code}&lang=ja`;
+
+                        const badgeHtml = `<a href="${infoUrl}" target="_blank" style="text-decoration:none; display:block; color:inherit; margin-bottom:8px;">
+                            <div class="warning-badge" style="background:#e3f2fd; border-color:#90caf9; color:#0d47a1; border-left-color:#1976d2; cursor:pointer; transition:0.2s; margin-bottom:0;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                                <div style="font-size:0.75rem; color:#666; margin-bottom:4px; font-weight:normal; display:flex; justify-content:space-between;">
+                                    <span>🕒 発表: ${timeStr}</span>
+                                    <span style="color:#0284c7; font-weight:bold;">詳細を見る 🔗</span>
+                                </div>
+                                <div style="font-weight:bold;">📢 ${extractedTitle}${issueNoStr}</div>
+                            </div>
+                        </a>`;
+
+                        // 💡 地方と府県の振り分け判定！
+                        const tArea = info.targetArea || "";
+                        const tTitle = extractedTitle || "";
+                        // 名前（大阪など）や、府・県・都・道が含まれていたら「府県気象情報」
+                        if (tArea.includes(name) || tTitle.includes(name) || tTitle.includes("府") || tTitle.includes("県") || tTitle.includes("都") || tTitle.includes("道")) {
+                            fukenHtml += badgeHtml;
+                        } else {
+                            // それ以外（近畿地方など）は「地方気象情報」
+                            chihouHtml += badgeHtml;
+                        }
+                    });
+
+                    // 💡 分けた情報を合体させて表示！
+                    let finalHtml = "";
+                    if (fukenHtml !== "") {
+                        finalHtml += `<div style="font-size:0.85rem; font-weight:bold; color:#004080; margin-bottom:5px;">📍 府県気象情報</div>` + fukenHtml;
+                    }
+                    if (chihouHtml !== "") {
+                        finalHtml += `<div style="font-size:0.85rem; font-weight:bold; color:#d97706; margin-top:10px; margin-bottom:5px;">🌐 地方気象情報</div>` + chihouHtml;
+                    }
+                    infoBox.innerHTML = finalHtml;
+
+                } else {
+                    infoBox.innerHTML = `<div class="safe-badge">🟢 現在発表されている気象情報はありません</div>`;
+                }
             } else {
-                subTabsBox.style.display = 'none';
+                infoBox.innerHTML = `<div class="safe-badge">🟢 現在発表されている気象情報はありません</div>`;
             }
 
-            // 初期表示として最初の1次細分エリアを描画
-            if(mainAreas.length > 0) {
-                renderSubArea(0, mainAreas[0].area.code, null, mainAreas[0].area.name);
-            }
+            // --- コメント復旧 (Iframe) ---
+            try {
+                fetch(`https://www.jma.go.jp/bosai/forecaster_comment/data/comments/${code}.txt`)
+                .then(res => {
+                    const iframe = document.getElementById('commentIframe');
+                    if (res.ok) {
+                        res.arrayBuffer().then(buf => {
+                            iframe.srcdoc = new TextDecoder("utf-8").decode(buf);
+                        });
+                    } else { iframe.srcdoc = "現在、気象台からのコメントはありません。"; }
+                }).catch(e => console.warn("コメント取得エラー", e));
+            } catch(e) {}
 
         } catch(e) { console.error("データ取得全体でエラーが発生しました:", e); }
         
         loadHistory(code);
         setTimeout(() => { document.getElementById('loading-overlay').style.display = 'none'; }, 500);
-    }
-
-    // 選択された1次細分エリアの情報を表示する関数
-    function renderSubArea(areaIndex, areaCode, tabEl = null, areaName = "") {
-        if (!currentWeatherData) return;
-        const { fData, oData, wData, iData, code, name } = currentWeatherData;
-
-        if (tabEl) {
-            document.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
-            tabEl.classList.add('active');
-        }
-
-        // タイトルの更新
-        document.getElementById('areaLabel').innerText = areaName ? `${name} - ${areaName}` : name;
-
-        let dailyData = {}; 
-        let popMap = {};
-
-        try {
-            // 短期と週間の降水確率をマップに保存 (対象エリアのみ抽出)
-            const shortPopSeries = fData[0]?.timeSeries?.find(s => s.areas && s.areas.some(a => a.pops));
-            if (shortPopSeries) {
-                const targetArea = shortPopSeries.areas.find(a => a.area.code === areaCode) || shortPopSeries.areas[0];
-                shortPopSeries.timeDefines.forEach((t, i) => {
-                    const dateStr = t.split('T')[0];
-                    const popStr = targetArea.pops[i];
-                    if (popStr !== undefined && popStr !== "") {
-                        const popVal = parseInt(popStr);
-                        if (!isNaN(popVal)) {
-                            if (popMap[dateStr] === undefined || popVal > popMap[dateStr]) popMap[dateStr] = popVal;
-                        }
-                    }
-                });
-            }
-            const weeklyPopSeries = fData[1]?.timeSeries?.find(s => s.areas && s.areas.some(a => a.pops));
-            if (weeklyPopSeries) {
-                const targetArea = weeklyPopSeries.areas.find(a => a.area.code === areaCode) || weeklyPopSeries.areas[0];
-                weeklyPopSeries.timeDefines.forEach((t, i) => {
-                    const dateStr = t.split('T')[0];
-                    const popStr = targetArea.pops[i];
-                    if (popStr !== undefined && popStr !== "") {
-                        const popVal = parseInt(popStr);
-                        if (!isNaN(popVal)) {
-                            if (popMap[dateStr] === undefined || popVal > popMap[dateStr]) popMap[dateStr] = popVal;
-                        }
-                    }
-                });
-            }
-
-            // 時間帯ごとの降水確率
-            if (shortPopSeries) {
-                const targetArea = shortPopSeries.areas.find(a => a.area.code === areaCode) || shortPopSeries.areas[0];
-                shortPopSeries.timeDefines.forEach((t, i) => {
-                    const dateStr = t.split('T')[0];
-                    const timeHourStr = t.split('T')[1].substring(0, 2);
-                    const popStr = targetArea.pops[i];
-                    
-                    if (!dailyData[dateStr]) dailyData[dateStr] = { popsArray: ["-", "-", "-", "-"] };
-                    if (!dailyData[dateStr].popsArray) dailyData[dateStr].popsArray = ["-", "-", "-", "-"];
-
-                    if (popStr !== undefined && popStr !== "") {
-                        let popIdx = -1;
-                        if (timeHourStr === "00") popIdx = 0;
-                        else if (timeHourStr === "06") popIdx = 1;
-                        else if (timeHourStr === "12") popIdx = 2;
-                        else if (timeHourStr === "18") popIdx = 3;
-                        
-                        if (popIdx !== -1) dailyData[dateStr].popsArray[popIdx] = popStr + "%";
-                    }
-                });
-            }
-        } catch (e) { console.warn("降水確率の抽出スキップ:", e); }
-
-        // 短期の天気コードを保存
-        if (fData[0] && fData[0].timeSeries && fData[0].timeSeries[0]) {
-            const shortWeather = fData[0].timeSeries[0];
-            const targetArea = shortWeather.areas.find(a => a.area.code === areaCode) || shortWeather.areas[0];
-            
-            shortWeather.timeDefines.forEach((time, index) => {
-                const dateStr = time.split('T')[0];
-                const d = new Date(time);
-                let dayLabel = `${d.getMonth()+1}/${d.getDate()}`;
-                const todayStr = new Date().toISOString().split('T')[0];
-                const tmrw = new Date(); tmrw.setDate(tmrw.getDate()+1);
-                const tmrwStr = tmrw.toISOString().split('T')[0];
-                if(dateStr === todayStr) dayLabel = "今日";
-                else if(dateStr === tmrwStr) dayLabel = "明日";
-                
-                if (!dailyData[dateStr]) dailyData[dateStr] = {};
-                
-                let wText = targetArea.weathers ? targetArea.weathers[index] : telopToText(targetArea.weatherCodes[index]);
-                
-                dailyData[dateStr] = {
-                    ...dailyData[dateStr],
-                    dateText: dayLabel,
-                    weatherCode: targetArea.weatherCodes[index],
-                    weatherText: wText,
-                    minTemp: dailyData[dateStr].minTemp || "-", 
-                    maxTemp: dailyData[dateStr].maxTemp || "-",
-                    popsArray: dailyData[dateStr].popsArray || ["-", "-", "-", "-"]
-                };
-            });
-        }
-
-        // 短期の気温を保存
-        if (fData[0] && fData[0].timeSeries && fData[0].timeSeries.length > 2) {
-            const shortTemps = fData[0].timeSeries[2];
-            if (shortTemps && shortTemps.timeDefines && shortTemps.areas) {
-                const targetArea = shortTemps.areas.find(a => a.area.code === areaCode) || shortTemps.areas[0];
-                if (targetArea && targetArea.temps) {
-                    shortTemps.timeDefines.forEach((time, index) => {
-                        const dateStr = time.split('T')[0];
-                        const timeHour = time.split('T')[1].substring(0, 2);
-                        if (dailyData[dateStr] && index < targetArea.temps.length) {
-                            const tempValue = targetArea.temps[index];
-                            if (timeHour === "00" || timeHour === "06") { dailyData[dateStr].minTemp = tempValue; }
-                            else if (timeHour === "09" || timeHour === "12") { dailyData[dateStr].maxTemp = tempValue; }
-                        }
-                    });
-                }
-            }
-        }
-
-        // 週間の天気と気温を保存
-        if (fData.length > 1 && fData[1].timeSeries) {
-            const weeklyWeather = fData[1].timeSeries[0];
-            const weeklyTemps = fData[1].timeSeries.length > 1 ? fData[1].timeSeries[1] : null;
-            
-            if (weeklyWeather && weeklyWeather.timeDefines) {
-                const targetArea = weeklyWeather.areas.find(a => a.area.code === areaCode) || weeklyWeather.areas[0];
-                weeklyWeather.timeDefines.forEach((time, index) => {
-                    const dateStr = time.split('T')[0];
-                    const wCode = targetArea.weatherCodes[index];
-                    
-                    if (!dailyData[dateStr]) dailyData[dateStr] = {};
-                    
-                    let wText = dailyData[dateStr].weatherText;
-                    if (!wText || wText === "ー") wText = telopToText(wCode);
-
-                    if (!dailyData[dateStr].weatherCode) {
-                        const d = new Date(time);
-                        dailyData[dateStr] = {
-                            ...dailyData[dateStr],
-                            dateText: dailyData[dateStr].dateText || `${d.getMonth()+1}/${d.getDate()}`,
-                            weatherCode: wCode,
-                            weatherText: wText, 
-                            minTemp: dailyData[dateStr].minTemp || "-", 
-                            maxTemp: dailyData[dateStr].maxTemp || "-"
-                        };
-                    } else {
-                        dailyData[dateStr].weatherText = wText;
-                    }
-                });
-            }
-            if (weeklyTemps && weeklyTemps.timeDefines && weeklyTemps.areas) {
-                const targetArea = weeklyTemps.areas.find(a => a.area.code === areaCode) || weeklyTemps.areas[0];
-                weeklyTemps.timeDefines.forEach((time, index) => {
-                    const dateStr = time.split('T')[0];
-                    if (dailyData[dateStr]) {
-                        if (targetArea.tempsMin && index < targetArea.tempsMin.length && targetArea.tempsMin[index] !== "") dailyData[dateStr].minTemp = targetArea.tempsMin[index];
-                        if (targetArea.tempsMax && index < targetArea.tempsMax.length && targetArea.tempsMax[index] !== "") dailyData[dateStr].maxTemp = targetArea.tempsMax[index];
-                    }
-                });
-            }
-        }
-
-        // HTMLの生成
-        let shortHtml = ""; let weeklyHtml = ""; let dayCount = 0;
-        Object.keys(dailyData).sort().forEach(dateStr => {
-            const d = dailyData[dateStr];
-            if (!d.weatherCode) return;
-
-            const mappedCode = jmaIconMap[d.weatherCode] || (String(d.weatherCode).charAt(0) + "00");
-            const iconUrl = `https://www.jma.go.jp/bosai/forecast/img/${mappedCode}.svg`;
-            const popDisplay = popMap[dateStr] !== undefined ? `${popMap[dateStr]}%` : "--%";
-
-            if (dayCount < 3) {
-                let popSectionHtml = `<div class="pop-box">☔ ${popDisplay}</div>`;
-                if (dayCount < 2 && d.popsArray) {
-                    popSectionHtml = `
-                        <table class="pop-table">
-                            <tr><th>0-6</th><th>6-12</th><th>12-18</th><th>18-24</th></tr>
-                            <tr><td>${d.popsArray[0]}</td><td>${d.popsArray[1]}</td><td>${d.popsArray[2]}</td><td>${d.popsArray[3]}</td></tr>
-                        </table>
-                    `;
-                }
-
-                shortHtml += `
-                    <div class="forecast-day">
-                        <div class="forecast-date">${d.dateText}</div>
-                        <img src="${iconUrl}" class="weather-img" alt="天気アイコン" onerror="this.style.display='none'">
-                        <div class="weather-text">${d.weatherText}</div>
-                        ${popSectionHtml}
-                        <div class="temp-box"><span class="temp-max">${d.maxTemp}${d.maxTemp!=="-"?"℃":""}</span> / <span class="temp-min">${d.minTemp}${d.minTemp!=="-"?"℃":""}</span></div>
-                    </div>
-                `;
-            } else {
-                weeklyHtml += `
-                    <div class="forecast-day">
-                        <div class="forecast-date">${d.dateText}</div>
-                        <img src="${iconUrl}" class="weather-img" alt="天気アイコン" onerror="this.style.display='none'">
-                        <div class="weather-text">${d.weatherText}</div> <div class="pop-box" style="margin-top:2px;">☔ ${popDisplay}</div>
-                        <div class="temp-box" style="font-size:0.8rem; padding:2px;">
-                            <span class="temp-max">${d.maxTemp}${d.maxTemp!=="-"?"℃":""}</span>/<br><span class="temp-min">${d.minTemp}${d.minTemp!=="-"?"℃":""}</span>
-                        </div>
-                    </div>
-                `;
-            }
-            dayCount++;
-        });
-        
-        document.getElementById('shortForecast').innerHTML = shortHtml || "データなし";
-        document.getElementById('weeklyForecast').innerHTML = weeklyHtml || "<div class='info-text'>週間予報データがありません</div>";
-
-        // --- 2. 概況 (府県単位で共通) ---
-        document.getElementById('overview').innerText = oData.text || "概況データがありません。";
-
-        // --- 3. 警報・注意報 (漏れ防止のため府県単位で全表示) ---
-        const alertBox = document.getElementById('alertContainer');
-        let alertHtml = "";
-        if(wData.headlineText) {
-            alertHtml += `<div class="warning-badge" style="background:#fffdf0; border-left:5px solid #ffc107; font-weight:normal; color:#333;">📢 <b>注意警戒文</b><br>${wData.headlineText}</div>`;
-        }
-        let alerts = [];
-        function findWarn(o) {
-            if(Array.isArray(o)) o.forEach(findWarn);
-            else if(typeof o === 'object' && o !== null) {
-                if(o.code && warnMap[o.code] && (o.status==="発表" || o.status==="継続")) alerts.push(warnMap[o.code]);
-                for(let k in o) findWarn(o[k]);
-            }
-        }
-        findWarn(wData);
-        alerts = [...new Set(alerts)];
-        if(alerts.length > 0) {
-            alerts.forEach(a => {
-                const isW = a.includes("警報");
-                alertHtml += `<div class="${isW?'danger-badge':'warning-badge'}">${a}</div>`;
-            });
-        } else if(!wData.headlineText) {
-            alertHtml = `<div class="safe-badge">🟢 現在、警報・注意報はありません</div>`;
-        }
-        alertBox.innerHTML = alertHtml;
-        document.getElementById('linkAlert').href = `https://www.jma.go.jp/bosai/warning/#area_type=offices&area_code=${code}&lang=ja`;
-
-        // --- 4. 発表タイトル ---
-        const infoBox = document.getElementById('infoContainer');
-        if(iData && iData.length > 0) {
-            let infoHtml = "";
-            iData.forEach(info => {
-                infoHtml += `<div class="warning-badge" style="background:#e3f2fd; border-color:#90caf9; color:#0d47a1; border-left-color:#1976d2;">📢 ${info.title || '気象情報'}</div>`;
-            });
-            infoBox.innerHTML = infoHtml;
-        } else {
-            infoBox.innerHTML = `<div class="safe-badge">🟢 現在発表されている気象情報はありません</div>`;
-        }
-
-        // --- コメント復旧 (Iframe) ---
-        try {
-            fetch(`https://www.jma.go.jp/bosai/forecaster_comment/data/comments/${code}.txt`)
-            .then(res => {
-                const iframe = document.getElementById('commentIframe');
-                if (res.ok) {
-                    res.arrayBuffer().then(buf => {
-                        iframe.srcdoc = new TextDecoder("utf-8").decode(buf);
-                    });
-                } else { iframe.srcdoc = "現在、気象台からのコメントはありません。"; }
-            }).catch(e => console.warn("コメント取得エラー", e));
-        } catch(e) {}
     }
 
     function recordHistory(code, content) {
