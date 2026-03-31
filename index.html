@@ -54,7 +54,10 @@
         .pop-table td { border: 1px solid #b3d9ff; padding: 3px 1px; color: #333; }
 
         .pop-box { font-size: 0.8rem; color: #0066cc; margin: 5px 0; font-weight: bold; background: #e6f2ff; border-radius: 4px; padding: 2px 0; }
-        .weather-text { font-size: 0.8rem; margin: 5px 0; min-height: 2.4em; display: flex; align-items: center; justify-content: center; line-height: 1.2; }
+        
+        /* 💡 予報文が長くなっても横に伸びず、綺麗に改行されるように変更！ */
+        .weather-text { font-size: 0.8rem; margin: 5px 0; min-height: 2.4em; display: flex; align-items: center; justify-content: center; line-height: 1.3; white-space: normal; word-break: keep-all; overflow-wrap: anywhere; }
+        
         .temp-box { font-size: 0.9rem; margin-top: 5px; background: #f4f4f4; border-radius: 4px; padding: 4px; }
         .temp-max { color: #d9534f; font-weight: bold; }
         .temp-min { color: #004080; font-weight: bold; }
@@ -65,11 +68,19 @@
         .danger-badge { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 10px; border-radius: 6px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; font-weight: bold; border-left: 5px solid var(--warning); }
         .safe-badge { background: #d4edda; color: #155724; padding: 10px; border-radius: 6px; font-weight: bold; text-align: center; margin-bottom: 8px; }
 
+        /* 💡 折りたたみメニュー（アコーディオン）用のデザインを追加！ */
+        details.info-accordion { margin-top: 5px; background: #f8f9fa; border: 1px solid #eee; border-radius: 6px; padding: 5px; }
+        details.info-accordion summary { cursor: pointer; font-size: 0.85rem; color: #555; font-weight: bold; padding: 5px; outline: none; transition: 0.2s; }
+        details.info-accordion summary:hover { color: #004080; }
+        details.info-accordion summary::marker { color: #0284c7; }
+
         .map-container { text-align: center; background: #eee; border-radius: 8px; overflow: hidden; }
         img.map-img { max-width: 100%; height: auto; display: block; margin: 0 auto; cursor: zoom-in; }
         .refresh-btn { background: #6c757d; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; }
         .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .action-btn { background: var(--primary); color: white; text-align: center; padding: 12px 5px; text-decoration: none; border-radius: 8px; font-size: 0.85rem; font-weight: bold; display: block; }
+        .action-btn { background: var(--primary); color: white; text-align: center; padding: 12px 5px; text-decoration: none; border-radius: 8px; font-size: 0.85rem; font-weight: bold; display: block; transition: 0.2s; }
+        .action-btn:active { transform: scale(0.98); }
+        
         .history-item { font-size: 0.85rem; padding: 8px 0; border-bottom: 1px solid #eee; }
         .history-time { color: #888; font-size: 0.75rem; margin-right: 8px; }
 
@@ -209,10 +220,14 @@
     </div>
 
     <div class="card">
-        <h2>6 & 7. 地震・台風情報</h2>
-        <div class="btn-grid">
+        <h2>6 & 7. 地震・台風・解説資料</h2>
+        <div class="btn-grid" style="margin-bottom: 10px;">
             <a href="https://www.jma.go.jp/bosai/map.html#contents=earthquake_map" target="_blank" class="action-btn" style="background:#cc0000;">地震情報</a>
             <a href="https://www.jma.go.jp/bosai/map.html#contents=typhoon" target="_blank" class="action-btn" style="background:#ff8c00;">台風情報</a>
+        </div>
+        <div class="btn-grid">
+            <a href="https://www.data.jma.go.jp/yoho/data/jishin/kaisetsu_tanki_latest.pdf" target="_blank" class="action-btn" style="background:#0284c7; font-size: 0.8rem;">📘 短期予報解説資料</a>
+            <a href="https://www.data.jma.go.jp/yoho/data/jishin/kaisetsu_shukan_latest.pdf" target="_blank" class="action-btn" style="background:#059669; font-size: 0.8rem;">📗 週間予報解説資料</a>
         </div>
     </div>
     
@@ -655,75 +670,101 @@
             alertBox.innerHTML = alertHtml;
             document.getElementById('linkAlert').href = `https://www.jma.go.jp/bosai/warning/#area_type=offices&area_code=${code}&lang=ja`;
 
-            // --- 4. 発表タイトル (地方と府県の分離・号数取得・リンク化 完了！) ---
+            // --- 4. 発表タイトル (ソート・最新強調・折りたたみ) ---
             const infoBox = document.getElementById('infoContainer');
             if(iData && Array.isArray(iData)) {
-                let infoHtml = "";
                 
-                // 💡 東京都トラップを回避しつつ、正しい県の情報だけを抜き出す！
-                const localInfos = iData.filter(info => {
+                // 東京都トラップを回避しつつ、正しい県の情報だけを抜き出す
+                let localInfos = iData.filter(info => {
                     const title = info.title || info.headTitle || "";
                     const office = info.publishingOffice || "";
                     if (name === "京都" && (title.includes("東京都") || office.includes("東京"))) {
-                        return false; // 東京のデータはここで弾く！
+                        return false; 
                     }
                     return title.includes(name) || office.includes(name);
                 });
 
                 if (localInfos.length > 0) {
-                    let fukenHtml = "";
-                    let chihouHtml = "";
+                    
+                    // 💡 新着順（日時が新しい順）に並び替え！
+                    localInfos.sort((a, b) => new Date(b.reportDatetime || 0) - new Date(a.reportDatetime || 0));
 
+                    let fukenInfos = [];
+                    let chihouInfos = [];
+
+                    // 地方と府県の振り分け
                     localInfos.forEach(info => {
-                        // 🕒 発表時刻
-                        let timeStr = "時刻不明";
-                        if (info.reportDatetime) {
-                            const d = new Date(info.reportDatetime);
-                            timeStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-                        }
-                        
-                        // 📢 タイトル
                         const extractedTitle = info.headTitle || info.title || info.controlTitle || '気象情報';
-                        
-                        // 🔢 号数（見つからない場合は随時発表のため空欄）
-                        let issueNoStr = "";
-                        const sNo = info.serialNo || info.serial || info.issueNo || (info.head && info.head.serial);
-                        if (sNo && String(sNo) !== "0" && String(sNo) !== "") {
-                            issueNoStr = ` 第${sNo}号`;
-                        }
-
-                        // 🔗 リンク
-                        const infoUrl = `https://www.jma.go.jp/bosai/information/#area_type=offices&area_code=${code}&lang=ja`;
-
-                        const badgeHtml = `<a href="${infoUrl}" target="_blank" style="text-decoration:none; display:block; color:inherit; margin-bottom:8px;">
-                            <div class="warning-badge" style="background:#e3f2fd; border-color:#90caf9; color:#0d47a1; border-left-color:#1976d2; cursor:pointer; transition:0.2s; margin-bottom:0;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
-                                <div style="font-size:0.75rem; color:#666; margin-bottom:4px; font-weight:normal; display:flex; justify-content:space-between;">
-                                    <span>🕒 発表: ${timeStr}</span>
-                                    <span style="color:#0284c7; font-weight:bold;">詳細を見る 🔗</span>
-                                </div>
-                                <div style="font-weight:bold;">📢 ${extractedTitle}${issueNoStr}</div>
-                            </div>
-                        </a>`;
-
-                        // 💡 地方と府県の振り分け判定！
                         const tArea = info.targetArea || "";
-                        const tTitle = extractedTitle || "";
-                        // 名前（大阪など）や、府・県・都・道が含まれていたら「府県気象情報」
-                        if (tArea.includes(name) || tTitle.includes(name) || tTitle.includes("府") || tTitle.includes("県") || tTitle.includes("都") || tTitle.includes("道")) {
-                            fukenHtml += badgeHtml;
+                        if (tArea.includes(name) || extractedTitle.includes(name) || extractedTitle.includes("府") || extractedTitle.includes("県") || extractedTitle.includes("都") || extractedTitle.includes("道")) {
+                            fukenInfos.push(info);
                         } else {
-                            // それ以外（近畿地方など）は「地方気象情報」
-                            chihouHtml += badgeHtml;
+                            chihouInfos.push(info);
                         }
                     });
 
-                    // 💡 分けた情報を合体させて表示！
-                    let finalHtml = "";
-                    if (fukenHtml !== "") {
-                        finalHtml += `<div style="font-size:0.85rem; font-weight:bold; color:#004080; margin-bottom:5px;">📍 府県気象情報</div>` + fukenHtml;
+                    // 情報をHTMLにする関数（最新を強調、他を折りたたむ）
+                    function buildInfoHtml(infoList) {
+                        if (infoList.length === 0) return "";
+                        let mainHtml = "";
+                        let accordionHtml = "";
+
+                        infoList.forEach((info, index) => {
+                            // 時刻
+                            let timeStr = "時刻不明";
+                            if (info.reportDatetime) {
+                                const d = new Date(info.reportDatetime);
+                                timeStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                            }
+                            
+                            // タイトル・号数
+                            const extractedTitle = info.headTitle || info.title || info.controlTitle || '気象情報';
+                            let issueNoStr = "";
+                            const sNo = info.serialNo || info.serial || info.issueNo || (info.head && info.head.serial);
+                            if (sNo && String(sNo) !== "0" && String(sNo) !== "") issueNoStr = ` 第${sNo}号`;
+
+                            // リンク
+                            const infoUrl = `https://www.jma.go.jp/bosai/information/#area_type=offices&area_code=${code}&lang=ja`;
+
+                            // 💡 最新情報（1件目）のスタイル分け
+                            const isLatest = (index === 0);
+                            const bgStyle = isLatest ? "background:#fff5f5; border-color:#ffcdd2; border-left-color:#e53935;" : "background:#e3f2fd; border-color:#90caf9; border-left-color:#1976d2;";
+                            const titleColor = isLatest ? "#c62828" : "#0d47a1";
+                            const latestBadge = isLatest ? `<span style="background:#e53935; color:white; padding:2px 6px; border-radius:4px; font-size:0.65rem; margin-right:5px; vertical-align:middle;">NEW</span>` : "";
+
+                            const badgeHtml = `<a href="${infoUrl}" target="_blank" style="text-decoration:none; display:block; color:inherit; margin-bottom:8px;">
+                                <div class="warning-badge" style="${bgStyle} cursor:pointer; transition:0.2s; margin-bottom:0;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                                    <div style="font-size:0.75rem; color:#666; margin-bottom:4px; font-weight:normal; display:flex; justify-content:space-between;">
+                                        <span>🕒 発表: ${timeStr}</span>
+                                        <span style="color:${titleColor}; font-weight:bold;">詳細を見る 🔗</span>
+                                    </div>
+                                    <div style="font-weight:bold; line-height:1.4;">${latestBadge}${extractedTitle}${issueNoStr}</div>
+                                </div>
+                            </a>`;
+
+                            if (isLatest) {
+                                mainHtml += badgeHtml;
+                            } else {
+                                accordionHtml += badgeHtml;
+                            }
+                        });
+
+                        // 折りたたみ部分をまとめる
+                        if (accordionHtml !== "") {
+                            mainHtml += `<details class="info-accordion">
+                                            <summary>過去の発表を開く (${infoList.length - 1}件)</summary>
+                                            <div style="padding-top:8px;">${accordionHtml}</div>
+                                         </details>`;
+                        }
+                        return mainHtml;
                     }
-                    if (chihouHtml !== "") {
-                        finalHtml += `<div style="font-size:0.85rem; font-weight:bold; color:#d97706; margin-top:10px; margin-bottom:5px;">🌐 地方気象情報</div>` + chihouHtml;
+
+                    let finalHtml = "";
+                    if (fukenInfos.length > 0) {
+                        finalHtml += `<div style="font-size:0.85rem; font-weight:bold; color:#004080; margin-bottom:5px;">📍 府県気象情報</div>` + buildInfoHtml(fukenInfos);
+                    }
+                    if (chihouInfos.length > 0) {
+                        finalHtml += `<div style="font-size:0.85rem; font-weight:bold; color:#d97706; margin-top:10px; margin-bottom:5px;">🌐 地方気象情報</div>` + buildInfoHtml(chihouInfos);
                     }
                     infoBox.innerHTML = finalHtml;
 
