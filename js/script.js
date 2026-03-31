@@ -2,73 +2,6 @@ let currentCode = '270000';
 let currentName = '大阪';
 let isInitialLoad = true;
 
-const proxyUrl = "https://broken-disk-2256.tennis03061996.workers.dev//?url=";
-const targetUrl = "https://www.nao.ac.jp/astro/sky/"; 
-
-const prefCoordinates = {
-    "高知": {lat: 33.5597, lon: 133.5311}, "大阪": {lat: 34.6937, lon: 135.5023}, "京都": {lat: 35.0116, lon: 135.7681},
-    "兵庫": {lat: 34.6901, lon: 135.1955}, "滋賀": {lat: 35.0178, lon: 135.8546}, "奈良": {lat: 34.6851, lon: 135.8048},
-    "和歌山": {lat: 34.2305, lon: 135.1706}, "沖縄": {lat: 26.2124, lon: 127.6809}, "石垣": {lat: 24.3448, lon: 124.1553}
-};
-
-// ▼ 更新：定数(const)から変数(let)に変更。もし通信に失敗したときの予備データとして残しているよ
-let astroEvents = [
-    { date: "2026-04-22", name: "こと座流星群が極大", type: "流星群" },
-    { date: "2026-08-13", name: "ペルセウス座流星群が極大", type: "流星群" },
-    { date: "2026-10-06", name: "中秋の名月", type: "月" }
-];
-
-const jmaIconMap = {
-    "100":"100", "101":"101", "102":"102", "103":"102", "104":"104", "105":"104", "106":"102", "107":"102", "108":"102",
-    "110":"110", "111":"110", "112":"112", "113":"112", "114":"112", "115":"114", "116":"114", "117":"114", "118":"112", "119":"112",
-    "120":"102", "121":"102", "122":"112", "123":"112", "124":"112", "125":"112", "126":"112", "127":"112", "128":"112", "129":"112",
-    "130":"100", "131":"100", "132":"101", "140":"102", "160":"104", "170":"104",
-    "200":"200", "201":"201", "202":"202", "203":"202", "204":"204", "205":"204", "206":"202", "207":"202", "208":"202", "209":"200",
-    "210":"210", "211":"210", "212":"212", "213":"212", "214":"212", "215":"214", "216":"214", "217":"214", "218":"212", "219":"212",
-    "220":"202", "221":"202", "222":"212", "223":"212", "224":"212", "225":"212", "226":"212", "227":"212", "228":"212", "229":"212",
-    "230":"200", "231":"200", "240":"202", "250":"204", "260":"204", "270":"204",
-    "300":"300", "301":"301", "302":"302", "303":"303", "304":"300", "306":"300", "308":"300", "309":"303",
-    "311":"311", "313":"313", "314":"314", "315":"314", "316":"311", "317":"313", "320":"311", "321":"313", "322":"303", "323":"311", "324":"311", "325":"311", "328":"300", "329":"303",
-    "340":"400", "350":"300", "361":"411", "371":"413",
-    "400":"400", "401":"401", "402":"402", "403":"403", "405":"400", "406":"400", "407":"400", "409":"403",
-    "411":"411", "413":"413", "414":"414", "420":"411", "421":"413", "422":"414", "423":"411", "425":"411", "426":"411", "427":"414",
-    "450":"400"
-};
-
-function decodeWMO(code) {
-    if(code === 0) return {text: "快晴", icon: "☀️"};
-    if(code <= 3) return {text: "晴れ/曇り", icon: "⛅"};
-    if(code >= 45 && code <= 48) return {text: "霧", icon: "🌫️"};
-    if(code >= 51 && code <= 67) return {text: "雨", icon: "🌧️"};
-    if(code >= 71 && code <= 77) return {text: "雪", icon: "❄️"};
-    if(code >= 80 && code <= 82) return {text: "にわか雨", icon: "🌦️"};
-    if(code >= 95) return {text: "雷雨", icon: "⛈️"};
-    return {text: "不明", icon: "❓"};
-}
-
-function telopToText(code) {
-    const c = String(code);
-    const codeMap = {
-        "100":"晴れ", "101":"晴時々曇", "102":"晴一時雨", "104":"晴一時雪", "110":"晴後時々曇", "111":"晴のち曇", "112":"晴のち雨", "115":"晴のち雪", "130":"晴朝夕曇",
-        "200":"曇り", "201":"曇時々晴", "202":"曇一時雨", "204":"曇一時雪", "210":"曇後時々晴", "211":"曇のち晴", "212":"曇のち雨", "215":"曇のち雪",
-        "300":"雨", "301":"雨時々晴", "302":"雨時々止む", "303":"雨時々雪", "311":"雨のち晴", "313":"雨のち曇", "314":"雨のち雪",
-        "400":"雪", "401":"雪時々晴", "402":"雪時々止む", "403":"雪時々雨", "411":"雪のち晴", "413":"雪のち曇", "414":"雪のち雨"
-    };
-    if (codeMap[c]) return codeMap[c];
-    const first = c.charAt(0);
-    if(first === "1") return "晴れ";
-    if(first === "2") return "曇り";
-    if(first === "3") return "雨";
-    if(first === "4") return "雪";
-    return "不明";
-}
-
-const warnMap = {
-    "02":"暴風雪警報","03":"大雨警報","04":"洪水警報","05":"暴風警報","06":"大雪警報","07":"波浪警報","08":"高潮警報","09":"レベル3土砂災害警報",
-    "10":"大雨注意報","12":"大雪注意報","13":"風雪注意報","14":"雷注意報","15":"強風注意報","16":"波浪注意報","17":"融雪注意報","18":"洪水注意報","19":"高潮注意報","20":"濃霧注意報","21":"乾燥注意報","22":"なだれ注意報","23":"低温注意報","24":"霜注意報","25":"着氷注意報","26":"着雪注意報",
-    "32":"暴風雪特別警報","33":"大雨特別警報","35":"暴風特別警報","36":"大雪特別警報","37":"波浪特別警報","38":"高潮特別警報"
-};
-
 function getLunarDetails(date) {
     const refDate = new Date(2000, 0, 6, 18, 14);
     const diff = (date - refDate) / (1000 * 60 * 60 * 24);
@@ -93,10 +26,8 @@ function openMoonModal() {
 
 function closeMoonModal() { document.getElementById('moonModal').style.display = 'none'; }
 
-// ▼ 更新：astroEventsを元にリストを作るように変更
 function renderAstroEvents() {
     const container = document.getElementById('eventContainer');
-    // 最新のイベントを3つだけ表示するよ
     container.innerHTML = astroEvents.slice(0, 3).map(e => `
         <div class="event-item">
             <span class="event-tag">${e.type}</span>
@@ -105,37 +36,33 @@ function renderAstroEvents() {
     `).join('');
 }
 
-// ▼ 更新：自動でキーワードを抽出するスクレイピング処理
 async function fetchNAOJEvents() {
     const statusEl = document.getElementById('naojStatus');
     if (!statusEl) return;
     
     try {
         const response = await fetch(proxyUrl + targetUrl);
-        const textData = await response.text(); 
+        // 文字化け対策：強制的にUTF-8として読み込む
+        const arrayBuffer = await response.arrayBuffer();
+        const textData = new TextDecoder("utf-8").decode(arrayBuffer);
+        
         const parser = new DOMParser();
         const doc = parser.parseFromString(textData, "text/html");
         
-        // ページ内のリンク(a)や見出し(h2,h3,h4)をすべて取得
-        const elements = doc.querySelectorAll('a, h2, h3, h4');
+        // 取得漏れ対策：リスト(li)や段落(p)、表のセル(td)などテキストが入っていそうな場所を全部探す
+        const elements = doc.querySelectorAll('h2, h3, h4, p, li, td, dt, dd, span, a');
         
-        // 探したい天文イベントのキーワードリスト
         const keywords = ['流星群', '月食', '日食', 'スーパームーン', '接近', '彗星', '満月', '新月'];
         let newEvents = [];
 
         elements.forEach(el => {
-            // 余計な空白や改行を消して綺麗にする
             const text = el.innerText.replace(/\s+/g, ' ').trim(); 
             
-            // 短すぎたり長すぎる文章はノイズとして弾く（4〜35文字くらいがイベント名の目安）
             if (text.length > 3 && text.length < 35) {
-                // キーワードが含まれているか判定
                 const hasKeyword = keywords.some(kw => text.includes(kw));
-                // すでに同じ名前のイベントが追加されていないか判定
                 const isDuplicate = newEvents.some(e => e.name === text);
 
                 if (hasKeyword && !isDuplicate) {
-                    // キーワードに応じたタグ付け
                     let typeTag = "星空";
                     if (text.includes("流星群")) typeTag = "流星群";
                     else if (text.includes("食")) typeTag = "天文現象";
@@ -144,7 +71,7 @@ async function fetchNAOJEvents() {
                     else if (text.includes("彗星")) typeTag = "彗星";
 
                     newEvents.push({
-                        date: "最新情報(NAOJ)", // htmlの構造上、日付の抽出は複雑になるため固定文字にしているよ
+                        date: "最新情報(NAOJ)", 
                         name: text,
                         type: typeTag
                     });
@@ -153,11 +80,10 @@ async function fetchNAOJEvents() {
         });
 
         if (newEvents.length > 0) {
-            // うまく取得できたら、グローバル変数を上書きして画面を更新！
             astroEvents = newEvents;
             renderAstroEvents();
             statusEl.innerHTML = `✅ 国立天文台の最新情報に更新済み`;
-            statusEl.style.border = "none"; // 枠線を消してさりげなく
+            statusEl.style.color = "#4ade80";
         } else {
             statusEl.innerHTML = `⚠️ キーワードが見つからなかったよ（予備データを表示）`;
         }
@@ -166,7 +92,6 @@ async function fetchNAOJEvents() {
         statusEl.innerHTML = `⚠️ 通信エラー: 予備のイベントデータを表示中`;
     }
 }
-// ▲ ここまで ▲
 
 async function fetchCurrentWeather(lat, lon, target) {
     try {
