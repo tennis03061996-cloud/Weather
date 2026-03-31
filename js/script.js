@@ -2,7 +2,7 @@ let currentCode = '270000';
 let currentName = '大阪';
 let isInitialLoad = true;
 
-const proxyUrl = "https://my-cors-proxy.tennis03061996.workers.dev/?url=";
+const proxyUrl = "https://broken-disk-2256.tennis03061996.workers.dev//?url=";
 const targetUrl = "https://www.nao.ac.jp/astro/sky/"; 
 
 const prefCoordinates = {
