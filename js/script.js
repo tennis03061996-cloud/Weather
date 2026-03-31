@@ -114,38 +114,32 @@ async function fetchNAOJEvents() {
     const statusEl = document.getElementById('naojStatus');
     if (!statusEl) return;
     
+    console.log("NAOJへの通信を開始します..."); // ログ1
+
     try {
+        // 通信開始
         const response = await fetch(proxyUrl + targetUrl);
-        const textData = await response.text(); // HTML文字列として取得
+        console.log("レスポンスを受け取りました:", response.status); // ログ2
+
+        if (!response.ok) throw new Error(`サーバーエラー: ${response.status}`);
+
+        const textData = await response.text();
+        console.log("データのテキスト化に成功。文字数:", textData.length); // ログ3
+        console.log("届いたデータの中身の一部:", textData.substring(0, 500));
         
-        // 【ポイント】文字列をJavaScriptで操作できるDOM（タグ）に変換する
         const parser = new DOMParser();
         const doc = parser.parseFromString(textData, "text/html");
-        
-        // 通信が成功し、正しくHTMLが取得できたかタイトルで判定
-        const pageTitle = doc.querySelector('title') ? doc.querySelector('title').innerText : "";
+        const pageTitle = doc.querySelector('title') ? doc.querySelector('title').innerText : "タイトルなし";
         
         if (textData.length > 0) {
-            console.log("NAOJデータ取得成功！", pageTitle);
-            
-            // 成功したことが一目でわかるように緑色で表示
             statusEl.innerHTML = `
                 <span style="color: #4ade80; font-weight:bold;">✅ NAOJデータ通信成功！</span><br>
-                <span style="font-size:0.75rem; color:#ddd;">取得先: ${pageTitle || 'ページデータ'}</span><br>
-                <span style="font-size:0.65rem; color:#aaa;">※無事に通信できたよ！確認できたら、HTMLからこの緑の枠(id="naojStatus")ごと消して大丈夫！</span>
+                <span style="font-size:0.75rem; color:#ddd;">取得先: ${pageTitle}</span>
             `;
-            
-            /* * 【次のステップのヒント】
-             * ここから、doc.querySelectorAll('table tr') や doc.querySelector('.特定クラス')
-             * などを使って、HTML内から「ペルセウス座流星群」などのテキストを抽出し、
-             * 上にある ASTRO_EVENTS_2026 の配列を上書きするように処理を追記していくよ！
-             */
-        } else {
-            throw new Error("データが空でした");
         }
     } catch (err) {
-        console.error("NAOJデータ取得エラー:", err);
-        statusEl.innerHTML = `<span style="color: #f87171;">⚠️ 通信エラー: 標準のイベントデータを表示中</span>`;
+        console.error("NAOJ取得中にエラー発生:", err); // ログ4
+        statusEl.innerHTML = `<span style="color: #f87171;">⚠️ 通信失敗: ${err.message}</span>`;
     }
 }
 // ▲ ここまで ▲
