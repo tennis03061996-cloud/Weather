@@ -2,11 +2,8 @@ let currentCode = '270000';
 let currentName = '大阪';
 let isInitialLoad = true;
 
-// --- 追加：NAOJ (国立天文台) プロキシ通信用設定 ---
-const proxyUrl = "https://broken-disk-2256.tennis03061996.workers.dev/?url=";
-// 取得先：国立天文台のほしぞら情報のページ
+const proxyUrl = "https://my-cors-proxy.tennis03061996.workers.dev/?url=";
 const targetUrl = "https://www.nao.ac.jp/astro/sky/"; 
-// --------------------------------------------------
 
 const prefCoordinates = {
     "高知": {lat: 33.5597, lon: 133.5311}, "大阪": {lat: 34.6937, lon: 135.5023}, "京都": {lat: 35.0116, lon: 135.7681},
@@ -14,13 +11,10 @@ const prefCoordinates = {
     "和歌山": {lat: 34.2305, lon: 135.1706}, "沖縄": {lat: 26.2124, lon: 127.6809}, "石垣": {lat: 24.3448, lon: 124.1553}
 };
 
-const ASTRO_EVENTS_2026 = [
-    { date: "2026-03-20", name: "春分の日", type: "季節" },
+// ▼ 更新：定数(const)から変数(let)に変更。もし通信に失敗したときの予備データとして残しているよ
+let astroEvents = [
     { date: "2026-04-22", name: "こと座流星群が極大", type: "流星群" },
-    { date: "2026-05-01", name: "八十八夜", type: "暦" },
-    { date: "2026-06-21", name: "夏至", type: "季節" },
     { date: "2026-08-13", name: "ペルセウス座流星群が極大", type: "流星群" },
-    { date: "2026-09-23", name: "秋分の日", type: "季節" },
     { date: "2026-10-06", name: "中秋の名月", type: "月" }
 ];
 
@@ -99,9 +93,11 @@ function openMoonModal() {
 
 function closeMoonModal() { document.getElementById('moonModal').style.display = 'none'; }
 
+// ▼ 更新：astroEventsを元にリストを作るように変更
 function renderAstroEvents() {
     const container = document.getElementById('eventContainer');
-    container.innerHTML = ASTRO_EVENTS_2026.slice(0, 3).map(e => `
+    // 最新のイベントを3つだけ表示するよ
+    container.innerHTML = astroEvents.slice(0, 3).map(e => `
         <div class="event-item">
             <span class="event-tag">${e.type}</span>
             <div style="color:white;"><b>${e.name}</b><br><small>${e.date}</small></div>
@@ -109,37 +105,65 @@ function renderAstroEvents() {
     `).join('');
 }
 
-// ▼ 追加：NAOJからイベント情報を取得する関数 ▼
+// ▼ 更新：自動でキーワードを抽出するスクレイピング処理
 async function fetchNAOJEvents() {
     const statusEl = document.getElementById('naojStatus');
     if (!statusEl) return;
     
-    console.log("NAOJへの通信を開始します..."); // ログ1
-
     try {
-        // 通信開始
         const response = await fetch(proxyUrl + targetUrl);
-        console.log("レスポンスを受け取りました:", response.status); // ログ2
-
-        if (!response.ok) throw new Error(`サーバーエラー: ${response.status}`);
-
-        const textData = await response.text();
-        console.log("データのテキスト化に成功。文字数:", textData.length); // ログ3
-        console.log("届いたデータの中身の一部:", textData.substring(0, 500));
-        
+        const textData = await response.text(); 
         const parser = new DOMParser();
         const doc = parser.parseFromString(textData, "text/html");
-        const pageTitle = doc.querySelector('title') ? doc.querySelector('title').innerText : "タイトルなし";
         
-        if (textData.length > 0) {
-            statusEl.innerHTML = `
-                <span style="color: #4ade80; font-weight:bold;">✅ NAOJデータ通信成功！</span><br>
-                <span style="font-size:0.75rem; color:#ddd;">取得先: ${pageTitle}</span>
-            `;
+        // ページ内のリンク(a)や見出し(h2,h3,h4)をすべて取得
+        const elements = doc.querySelectorAll('a, h2, h3, h4');
+        
+        // 探したい天文イベントのキーワードリスト
+        const keywords = ['流星群', '月食', '日食', 'スーパームーン', '接近', '彗星', '満月', '新月'];
+        let newEvents = [];
+
+        elements.forEach(el => {
+            // 余計な空白や改行を消して綺麗にする
+            const text = el.innerText.replace(/\s+/g, ' ').trim(); 
+            
+            // 短すぎたり長すぎる文章はノイズとして弾く（4〜35文字くらいがイベント名の目安）
+            if (text.length > 3 && text.length < 35) {
+                // キーワードが含まれているか判定
+                const hasKeyword = keywords.some(kw => text.includes(kw));
+                // すでに同じ名前のイベントが追加されていないか判定
+                const isDuplicate = newEvents.some(e => e.name === text);
+
+                if (hasKeyword && !isDuplicate) {
+                    // キーワードに応じたタグ付け
+                    let typeTag = "星空";
+                    if (text.includes("流星群")) typeTag = "流星群";
+                    else if (text.includes("食")) typeTag = "天文現象";
+                    else if (text.includes("月") || text.includes("スーパームーン")) typeTag = "月";
+                    else if (text.includes("接近")) typeTag = "惑星";
+                    else if (text.includes("彗星")) typeTag = "彗星";
+
+                    newEvents.push({
+                        date: "最新情報(NAOJ)", // htmlの構造上、日付の抽出は複雑になるため固定文字にしているよ
+                        name: text,
+                        type: typeTag
+                    });
+                }
+            }
+        });
+
+        if (newEvents.length > 0) {
+            // うまく取得できたら、グローバル変数を上書きして画面を更新！
+            astroEvents = newEvents;
+            renderAstroEvents();
+            statusEl.innerHTML = `✅ 国立天文台の最新情報に更新済み`;
+            statusEl.style.border = "none"; // 枠線を消してさりげなく
+        } else {
+            statusEl.innerHTML = `⚠️ キーワードが見つからなかったよ（予備データを表示）`;
         }
     } catch (err) {
-        console.error("NAOJ取得中にエラー発生:", err); // ログ4
-        statusEl.innerHTML = `<span style="color: #f87171;">⚠️ 通信失敗: ${err.message}</span>`;
+        console.error("NAOJデータ取得エラー:", err);
+        statusEl.innerHTML = `⚠️ 通信エラー: 予備のイベントデータを表示中`;
     }
 }
 // ▲ ここまで ▲
@@ -433,7 +457,7 @@ function loadHistory(code) {
 window.onload = () => {
     updateMoonHeader();
     loadWeatherMap();
-    fetchNAOJEvents(); // ◀◀ 追加：起動時にバックグラウンドでNAOJのデータ取得を開始するよ
+    fetchNAOJEvents();
     
     const tabs = document.querySelectorAll('.tab');
     let osakaTab = Array.from(tabs).find(t => t.innerText.includes('大阪')) || tabs[0];
