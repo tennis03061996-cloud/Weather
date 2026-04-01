@@ -1,9 +1,12 @@
 /* ==========================================
    ▼▼▼ 変わらないデータ・設定エリア ▼▼▼
-   （天気コードや設定など。ここは基本触らなくてOK！）
 ========================================== */
+// 正しいプロキシURL
 const proxyUrl = "https://broken-disk-2256.tennis03061996.workers.dev/?url=";
-const targetUrl = "https://www.nao.ac.jp/astro/sky/";
+
+// ★修正点1：今年の年数（例：2026）を自動で計算して、詳細ページにアクセスする！
+const currentYear = new Date().getFullYear();
+const targetUrl = `https://www.nao.ac.jp/astro/sky/${currentYear}/`;
 
 let astroEvents = [
     { date: "2026-04-22", name: "こと座流星群が極大", type: "流星群" },
@@ -71,8 +74,6 @@ function telopToText(code) {
    ▲▲▲ 変わらないデータ・設定エリア 終了 ▲▲▲
 ========================================== */
 
-/* これより下はアプリを動かすためのメインエンジンだよ！ */
-
 let currentCode = '270000';
 let currentName = '大阪';
 let isInitialLoad = true;
@@ -123,27 +124,33 @@ async function fetchNAOJEvents() {
         const parser = new DOMParser();
         const doc = parser.parseFromString(textData, "text/html");
         
-        const elements = doc.querySelectorAll('h2, h3, h4, p, li, td, dt, dd, span, a');
-        const keywords = ['流星群', '月食', '日食', 'スーパームーン', '接近', '彗星', '満月', '新月'];
+        // リスト(li)などを取得
+        const elements = doc.querySelectorAll('li, a, h3, h4');
+        const keywords = ['流星群', '月食', '日食', 'スーパームーン', '接近', '彗星', '満月', '新月', '極大', '食'];
         let newEvents = [];
 
         elements.forEach(el => {
-            const text = el.innerText.replace(/\s+/g, ' ').trim(); 
+            // ★修正点2：裏側取得時は innerText が機能しないため、textContent を使う！
+            let text = el.textContent || "";
+            text = text.replace(/\s+/g, ' ').trim(); 
             
-            if (text.length > 3 && text.length < 35) {
+            if (text.length > 3 && text.length < 40) {
                 const hasKeyword = keywords.some(kw => text.includes(kw));
                 const isDuplicate = newEvents.some(e => e.name === text);
+                
+                // 余計なメニュー文言をノイズとして弾く
+                const isNoise = text.includes("星空・カレンダー") || text.includes("ほしぞら") || text.includes("展望");
 
-                if (hasKeyword && !isDuplicate) {
+                if (hasKeyword && !isDuplicate && !isNoise) {
                     let typeTag = "星空";
                     if (text.includes("流星群")) typeTag = "流星群";
                     else if (text.includes("食")) typeTag = "天文現象";
-                    else if (text.includes("月") || text.includes("スーパームーン")) typeTag = "月";
+                    else if (text.includes("月") || text.includes("スーパームーン") || text.includes("満月")) typeTag = "月";
                     else if (text.includes("接近")) typeTag = "惑星";
                     else if (text.includes("彗星")) typeTag = "彗星";
 
                     newEvents.push({
-                        date: "最新情報(NAOJ)", 
+                        date: `${currentYear}年 注目イベント`, 
                         name: text,
                         type: typeTag
                     });
@@ -154,7 +161,7 @@ async function fetchNAOJEvents() {
         if (newEvents.length > 0) {
             astroEvents = newEvents;
             renderAstroEvents();
-            statusEl.innerHTML = `✅ 国立天文台の最新情報に更新済み`;
+            statusEl.innerHTML = `✅ 国立天文台(${currentYear}年)のデータ取得成功！`;
             statusEl.style.color = "#4ade80";
         } else {
             statusEl.innerHTML = `⚠️ キーワードが見つからなかったよ（予備データを表示）`;
