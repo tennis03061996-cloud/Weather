@@ -1,17 +1,14 @@
 /* ==========================================
    ▼▼▼ 変わらないデータ・設定エリア ▼▼▼
+   （天気コードや設定など。ここは基本触らなくてOK！）
 ========================================== */
-// 正しいプロキシURL
 const proxyUrl = "https://broken-disk-2256.tennis03061996.workers.dev/?url=";
 
-// ★修正点1：今年の年数（例：2026）を自動で計算して、詳細ページにアクセスする！
-const currentYear = new Date().getFullYear();
-const targetUrl = `https://www.nao.ac.jp/astro/sky/${currentYear}/`;
-
+// 予備のイベントデータ（NAOJから取得できなかった時用）
 let astroEvents = [
-    { date: "2026-04-22", name: "こと座流星群が極大", type: "流星群" },
-    { date: "2026-08-13", name: "ペルセウス座流星群が極大", type: "流星群" },
-    { date: "2026-10-06", name: "中秋の名月", type: "月" }
+    { date: "4月22日", name: "こと座流星群が極大", type: "流星群" },
+    { date: "8月13日", name: "ペルセウス座流星群が極大", type: "流星群" },
+    { date: "10月6日", name: "中秋の名月", type: "月" }
 ];
 
 const prefCoordinates = {
@@ -74,6 +71,8 @@ function telopToText(code) {
    ▲▲▲ 変わらないデータ・設定エリア 終了 ▲▲▲
 ========================================== */
 
+/* これより下はアプリを動かすためのメインエンジンだよ！ */
+
 let currentCode = '270000';
 let currentName = '大阪';
 let isInitialLoad = true;
@@ -102,66 +101,122 @@ function openMoonModal() {
 
 function closeMoonModal() { document.getElementById('moonModal').style.display = 'none'; }
 
+// 表示件数を3件から5件に増やしたよ！
 function renderAstroEvents() {
     const container = document.getElementById('eventContainer');
-    container.innerHTML = astroEvents.slice(0, 3).map(e => `
+    container.innerHTML = astroEvents.slice(0, 5).map(e => `
         <div class="event-item">
             <span class="event-tag">${e.type}</span>
-            <div style="color:white;"><b>${e.name}</b><br><small>${e.date}</small></div>
+            <div style="color:white;"><b>${e.name}</b><br><small style="color:#4ade80;">${e.date}</small></div>
         </div>
     `).join('');
 }
 
+// ▼ 進化版：今月と来月のページ両方を見に行って、月日を抜き出す！
 async function fetchNAOJEvents() {
     const statusEl = document.getElementById('naojStatus');
     if (!statusEl) return;
     
     try {
-        const response = await fetch(proxyUrl + targetUrl);
-        const arrayBuffer = await response.arrayBuffer();
-        const textData = new TextDecoder("utf-8").decode(arrayBuffer);
+        // 現在の年月と来月の年月を自動で計算するよ
+        const now = new Date();
+        const year1 = now.getFullYear();
+        const month1 = now.getMonth() + 1; 
         
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(textData, "text/html");
-        
-        // リスト(li)などを取得
-        const elements = doc.querySelectorAll('li, a, h3, h4');
-        const keywords = ['流星群', '月食', '日食', 'スーパームーン', '接近', '彗星', '満月', '新月', '極大', '食'];
+        let year2 = year1;
+        let month2 = month1 + 1; 
+        if (month2 > 12) {
+            month2 = 1;
+            year2 += 1;
+        }
+
+        // 月の数字を2桁にする (例: 4 -> '04')
+        const m1Str = String(month1).padStart(2, '0');
+        const m2Str = String(month2).padStart(2, '0');
+
+        // 今月と来月の2つの詳細ページURLを作成
+        const url1 = `https://www.nao.ac.jp/astro/sky/${year1}/${m1Str}.html`;
+        const url2 = `https://www.nao.ac.jp/astro/sky/${year2}/${m2Str}.html`;
+
+        // 2つのページに同時にアクセスしてスピードアップ！
+        const [res1, res2] = await Promise.all([
+            fetch(proxyUrl + url1),
+            fetch(proxyUrl + url2).catch(() => null) // 来月分がまだなくてもエラーにしない安心設計
+        ]);
+
         let newEvents = [];
+        const keywords = ['流星群', '月食', '日食', 'スーパームーン', '接近', '彗星', '満月', '新月', '極大', '最大光度'];
 
-        elements.forEach(el => {
-            // ★修正点2：裏側取得時は innerText が機能しないため、textContent を使う！
-            let text = el.textContent || "";
-            text = text.replace(/\s+/g, ' ').trim(); 
+        // ページの中身を解析して「〇〇日」と「イベント名」を抜き出す関数
+        async function parseMonthlyPage(res, targetMonth) {
+            if (!res || !res.ok) return;
+            const arrayBuffer = await res.arrayBuffer();
+            const textData = new TextDecoder("utf-8").decode(arrayBuffer);
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(textData, "text/html");
             
-            if (text.length > 3 && text.length < 40) {
-                const hasKeyword = keywords.some(kw => text.includes(kw));
-                const isDuplicate = newEvents.some(e => e.name === text);
+            // メニューなどの不要な部分を削除して、ノイズを減らす
+            doc.querySelectorAll('header, footer, nav, .local-nav, .breadcrumb').forEach(el => el.remove());
+
+            // ページ内のすべてのテキストを1行にまとめる
+            const fullText = doc.body.textContent.replace(/\s+/g, ' ');
+            
+            // 💡 ここが魔法！「〇〇日」という文字を基準にして、前後の文章を切り分けるよ！
+            const parts = fullText.split(/(?:^|[^\d])(\d{1,2})日/); 
+
+            for (let i = 1; i < parts.length; i += 2) {
+                const day = parts[i]; // 「日」の数字
+                let rawDesc = (parts[i+1] || "").trim(); // その日のイベント内容
                 
-                // 余計なメニュー文言をノイズとして弾く
-                const isNoise = text.includes("星空・カレンダー") || text.includes("ほしぞら") || text.includes("展望");
+                // 長すぎる説明文はカットしてスッキリ見せる（最大40文字）
+                if (rawDesc.length > 40) {
+                    const puncMatch = rawDesc.match(/^[^。！？]*[。！？]/);
+                    if (puncMatch && puncMatch[0].length < 40) {
+                        rawDesc = puncMatch[0];
+                    } else {
+                        rawDesc = rawDesc.substring(0, 40) + "...";
+                    }
+                }
 
-                if (hasKeyword && !isDuplicate && !isNoise) {
+                // キーワードチェック
+                const hasKeyword = keywords.some(kw => rawDesc.includes(kw));
+                // 余計な案内文を弾く
+                const isNoise = rawDesc.includes("カレンダー") || rawDesc.includes("星空") || rawDesc.includes("参照") || rawDesc.includes("特集");
+
+                if (hasKeyword && !isNoise) {
+                    // 先頭の不要な記号（/ や 、など）を綺麗にお掃除
+                    let cleanName = rawDesc.replace(/^[\/／には、\s]+/, '').trim();
+                    if(!cleanName) continue;
+
                     let typeTag = "星空";
-                    if (text.includes("流星群")) typeTag = "流星群";
-                    else if (text.includes("食")) typeTag = "天文現象";
-                    else if (text.includes("月") || text.includes("スーパームーン") || text.includes("満月")) typeTag = "月";
-                    else if (text.includes("接近")) typeTag = "惑星";
-                    else if (text.includes("彗星")) typeTag = "彗星";
+                    if (cleanName.includes("流星群")) typeTag = "流星群";
+                    else if (cleanName.includes("食")) typeTag = "天文現象";
+                    else if (cleanName.includes("月") || cleanName.includes("満月") || cleanName.includes("新月")) typeTag = "月";
+                    else if (cleanName.includes("接近")) typeTag = "惑星";
+                    else if (cleanName.includes("彗星")) typeTag = "彗星";
 
-                    newEvents.push({
-                        date: `${currentYear}年 注目イベント`, 
-                        name: text,
-                        type: typeTag
-                    });
+                    // 全く同じイベントが登録されるのを防ぐ
+                    const isDuplicate = newEvents.some(e => e.name === cleanName || e.name.includes(cleanName));
+
+                    if (!isDuplicate) {
+                        newEvents.push({
+                            date: `${targetMonth}月${day}日`, // ✨ここで月と日を合体！
+                            name: cleanName,
+                            type: typeTag
+                        });
+                    }
                 }
             }
-        });
+        }
+
+        // 今月と来月のページを順番に解析！
+        await parseMonthlyPage(res1, month1);
+        if (res2) await parseMonthlyPage(res2, month2);
 
         if (newEvents.length > 0) {
             astroEvents = newEvents;
             renderAstroEvents();
-            statusEl.innerHTML = `✅ 国立天文台(${currentYear}年)のデータ取得成功！`;
+            statusEl.innerHTML = `✅ ${month1}月・${month2}月の詳細データを取得成功！`;
             statusEl.style.color = "#4ade80";
         } else {
             statusEl.innerHTML = `⚠️ キーワードが見つからなかったよ（予備データを表示）`;
@@ -171,6 +226,7 @@ async function fetchNAOJEvents() {
         statusEl.innerHTML = `⚠️ 通信エラー: 予備のイベントデータを表示中`;
     }
 }
+// ▲ ここまでが進化版！
 
 async function fetchCurrentWeather(lat, lon, target) {
     try {
