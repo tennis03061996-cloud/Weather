@@ -78,8 +78,13 @@
         .info-text { font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap; color: #444; }
 
         .warning-badge { background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 10px; border-radius: 6px; margin-bottom: 8px; font-weight: bold; border-left: 5px solid var(--accent); }
-        .danger-badge { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 10px; border-radius: 6px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; font-weight: bold; border-left: 5px solid var(--warning); }
         .safe-badge { background: #d4edda; color: #155724; padding: 10px; border-radius: 6px; font-weight: bold; text-align: center; margin-bottom: 8px; }
+
+        /* ✨ 新しい注意報・警報のカラーレベル設定 */
+        .alert-tag-level5 { background: #212529; border: 1px solid #000; color: #fff; padding: 6px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; font-weight: bold; font-size: 0.85rem; margin-bottom: 4px; } /* 特別警報(黒) */
+        .alert-tag-level4 { background: #e0cff2; border: 1px solid #c4a7e7; color: #4a148c; padding: 6px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; font-weight: bold; font-size: 0.85rem; margin-bottom: 4px; } /* 危険警報(紫) */
+        .alert-tag-level3 { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 6px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; font-weight: bold; font-size: 0.85rem; margin-bottom: 4px; } /* 警報(赤) */
+        .alert-tag-level2 { background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 6px 10px; border-radius: 6px; display: inline-flex; align-items: center; font-weight: bold; font-size: 0.85rem; margin-bottom: 4px; } /* 注意報(黄) */
 
         details.info-accordion { margin-top: 5px; background: #f8f9fa; border: 1px solid #eee; border-radius: 6px; padding: 5px; }
         details.info-accordion summary { cursor: pointer; font-size: 0.85rem; color: #555; font-weight: bold; padding: 5px; outline: none; }
@@ -95,7 +100,7 @@
         img.map-img { max-width: 100%; height: auto; display: block; margin: 0 auto; cursor: zoom-in; }
 
         .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .action-btn { background: var(--primary); color: white; text-align: center; padding: 12px 5px; text-decoration: none; border-radius: 8px; font-size: 0.85rem; font-weight: bold; display: block; transition: 0.2s; cursor: pointer; border: none; }
+        .action-btn { background: var(--primary); color: white; text-align: center; padding: 12px 5px; text-decoration: none; border-radius: 8px; font-size: 0.85rem; font-weight: bold; display: block; transition: 0.2s; cursor: pointer; border: none; box-sizing: border-box; }
         .action-btn:active { transform: scale(0.98); }
 
         #loading-overlay { position: fixed; top: 60px; left: 0; right: 0; background: rgba(255,255,255,0.9); text-align: center; padding: 10px; display: none; z-index: 2000; font-size: 0.9rem; font-weight: bold; color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
@@ -176,20 +181,6 @@
             <p class="gps-temp-large" id="gpsTemp">--℃</p>
             <p style="font-weight: bold; color: #444; margin-bottom: 5px;" id="gpsDesc">晴れ</p>
             <p style="font-size: 0.85rem; color: #0284c7; font-weight: bold;" id="gpsDetails">体感: --℃ / 風: -- --m/s</p>
-        </div>
-    </div>
-</div>
-
-<!-- ✨ 情報本文表示用モーダル -->
-<div id="weatherInfoModal" class="modal-overlay">
-    <div class="modal-content" style="max-height: 85vh; display: flex; flex-direction: column;">
-        <span class="modal-close" onclick="closeWeatherInfoModal()">&times;</span>
-        <h3 class="modal-title" id="infoModalTitle" style="color: var(--primary); font-size: 1rem; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 5px; text-align: left;">情報のタイトル</h3>
-        <div id="infoModalContent" style="flex: 1; overflow-y: auto; text-align: left; font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap; color: #333; padding: 5px;">
-            情報を取得中...
-        </div>
-        <div style="margin-top: 15px; text-align: center;">
-            <a id="infoModalFallbackLink" href="#" target="_blank" class="action-btn" style="display: none; background: #0284c7; font-size: 0.85rem;">気象庁サイトで一覧を確認する</a>
         </div>
     </div>
 </div>
@@ -312,7 +303,12 @@
 
         <div class="btn-grid" style="margin-bottom: 10px;">
             <a href="#" id="linkTimeseries" target="_blank" class="action-btn" style="background:#14b8a6;">🕒 地域時系列予報</a>
-            <a href="#" id="linkTwoweek" target="_blank" class="action-btn" style="background:#f43f5e;">🌡️ 2週間気温予報</a>
+            <a href="#" id="linkWarningTimeline" target="_blank" class="action-btn" style="background:#0369a1;">🕒 時系列情報</a>
+        </div>
+
+        <div class="btn-grid" style="margin-bottom: 10px;">
+            <a href="#" id="linkKaikotan" target="_blank" class="action-btn" style="background:#4f46e5;">☔ 線状降水帯予測</a>
+            <a href="#" id="linkFire" target="_blank" class="action-btn" style="background:#ef4444;">🔥 火災気象通報</a>
         </div>
         
         <div class="btn-grid">
@@ -1168,54 +1164,6 @@ function latestMap() {
     renderMapDisplay();
 }
 
-// ✨ 気象情報の本文を取得してモーダルで表示する新しい関数！
-async function openWeatherInfoModal(targetJsonUrl, titleText, fallbackUrl) {
-    const modal = document.getElementById('weatherInfoModal');
-    const contentBox = document.getElementById('infoModalContent');
-    const titleBox = document.getElementById('infoModalTitle');
-    const fallbackLink = document.getElementById('infoModalFallbackLink');
-
-    modal.style.display = 'flex';
-    titleBox.innerHTML = titleText;
-    contentBox.innerHTML = "情報を取得しています...<br><span style='font-size:0.8rem; color:#888;'>※少し時間がかかる場合があります</span>";
-    fallbackLink.style.display = 'none';
-
-    try {
-        let res = await fetch(targetJsonUrl);
-        if (!res.ok) {
-            // 直接取得に失敗したらプロキシ経由で再チャレンジ！
-            res = await fetch(proxyUrl + encodeURIComponent(targetJsonUrl));
-            if (!res.ok) throw new Error("JSON Fetch failed");
-        }
-        
-        const data = await res.json();
-        let htmlContent = "";
-
-        if (data.headlineText) {
-            htmlContent += `<div style="font-weight:bold; color:var(--primary); margin-bottom:15px; border-left:4px solid var(--primary); padding-left:8px;">${data.headlineText}</div>`;
-        }
-        if (data.text) {
-            htmlContent += `<div>${data.text}</div>`;
-        }
-
-        if (!htmlContent) {
-            htmlContent = "本文データが見つかりませんでした。";
-        }
-        
-        contentBox.innerHTML = htmlContent;
-
-    } catch (e) {
-        console.error("Info fetch error", e);
-        contentBox.innerHTML = `<span style='color:red; font-weight:bold;'>データの取得に失敗しました。</span><br><br>恐れ入りますが、以下のボタンから気象庁のサイトで直接ご確認ください。`;
-        fallbackLink.href = fallbackUrl;
-        fallbackLink.style.display = 'inline-block';
-    }
-}
-
-function closeWeatherInfoModal() {
-    document.getElementById('weatherInfoModal').style.display = 'none';
-}
-
 async function updateArea(code, name, el) {
     currentCode = code;
     currentName = name;
@@ -1238,27 +1186,75 @@ async function updateArea(code, name, el) {
     const coords = prefCoordinates[name] || {lat: 35.689, lon: 139.691};
     fetchCurrentWeather(coords.lat, coords.lon, 'pref');
 
-    document.getElementById('linkProbability').href = `https://www.jma.go.jp/bosai/probability/#area_type=offices&area_code=${code}&lang=ja`;
-    document.getElementById('linkTimeseries').href = `https://www.jma.go.jp/bosai/wdist/timeseries.html#area_type=offices&area_code=${code}`;
+    const safeSetHref = (id, url) => {
+        const el = document.getElementById(id);
+        if (el) el.href = url;
+    };
+
+    safeSetHref('linkProbability', `https://www.jma.go.jp/bosai/probability/#area_type=offices&area_code=${code}&lang=ja`);
+    safeSetHref('linkTimeseries', `https://www.jma.go.jp/bosai/wdist/timeseries.html#area_type=offices&area_code=${code}`);
     const fukCode = fukMap[code] || "62"; 
-    document.getElementById('linkTwoweek').href = `https://www.data.jma.go.jp/cpd/twoweek/?fuk=${fukCode}`;
-    document.getElementById('linkAmedas').href = `https://www.jma.go.jp/bosai/map.html#8/${coords.lat}/${coords.lon}/&elem=temp&contents=amedas&interval=60`;
-    document.getElementById('linkNowc').href = `https://www.jma.go.jp/bosai/nowc/#lat:${coords.lat}/lon:${coords.lon}/zoom:8/colordepth:normal/elements:hrpns&slmcs&slmcs_fcst`;
-    document.getElementById('linkRisk').href = `https://www.jma.go.jp/bosai/risk/#lat:${coords.lat}/lon:${coords.lon}/zoom:8/colordepth:normal/elements:land`;
+    safeSetHref('linkTwoweek', `https://www.data.jma.go.jp/cpd/twoweek/?fuk=${fukCode}`);
+    safeSetHref('linkAmedas', `https://www.jma.go.jp/bosai/map.html#8/${coords.lat}/${coords.lon}/&elem=temp&contents=amedas&interval=60`);
+    safeSetHref('linkNowc', `https://www.jma.go.jp/bosai/nowc/#lat:${coords.lat}/lon:${coords.lon}/zoom:8/colordepth:normal/elements:hrpns&slmcs&slmcs_fcst`);
+    safeSetHref('linkRisk', `https://www.jma.go.jp/bosai/risk/#lat:${coords.lat}/lon:${coords.lon}/zoom:8/colordepth:normal/elements:land`);
+    safeSetHref('linkKaikotan', `https://www.jma.go.jp/bosai/kaikotan/#lat:${coords.lat}/lon:${coords.lon}/zoom:8/colordepth:normal/elements:tnss`);
+    
+    // ✨ 警報・注意報の時系列表 (気象庁HP直リンク) 
+    safeSetHref('linkWarningTimeline', `https://www.jma.go.jp/bosai/warning_timeline/#area_type=offices&area_code=${code}&efilter=all&lfilter=all`);
+
+    // ✨ 火災気象通報はリストを取得して「選択中の府県」の最新PDF動的リンクを生成する！
+    const defaultFireLink = `https://www.jma.go.jp/bosai/specified/#contents_id=effi&area_code=${code}`;
+    safeSetHref('linkFire', defaultFireLink);
+    fetch('https://www.jma.go.jp/bosai/specified/data/effi/list.json')
+        .then(r => r.json())
+        .then(listData => {
+            let pdfName = "";
+            let targetList = listData[code] || (listData.effi && listData.effi[code]);
+            
+            if (Array.isArray(targetList) && targetList.length > 0) {
+                // 配列の先頭（最新）からfnameを取得
+                const latest = targetList[0];
+                if (typeof latest === 'object' && latest !== null) {
+                    pdfName = latest.fname || latest.fileName || latest.pdf || "";
+                } else if (typeof latest === 'string') {
+                    pdfName = latest;
+                }
+            } else if (Array.isArray(listData)) {
+                // もしlistData自体が配列なら
+                const found = listData.find(item => item.areaCode === code || item.officeCode === code);
+                if (found) pdfName = found.fname || found.fileName || found.pdf || "";
+            }
+            
+            if (pdfName) {
+                if (!pdfName.endsWith('.pdf')) pdfName += '.pdf';
+                safeSetHref('linkFire', `https://www.jma.go.jp/bosai/specified/data/effi/pdf/${pdfName}`);
+            }
+        }).catch(e => console.log('火災気象通報の最新PDF取得に失敗:', e));
 
     try {
-        const [fRes, oRes, wRes, iRes] = await Promise.all([
-            fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${code}.json`),
-            fetch(`https://www.jma.go.jp/bosai/forecast/data/overview_forecast/${code}.json`),
-            fetch(`https://www.jma.go.jp/bosai/warning/data/warning/${code}.json`),
-            fetch(`https://www.jma.go.jp/bosai/information/data/information.json`).catch(() => null)
+        // ✨ 安全にJSONを取得するヘルパー関数（HTMLエラーページによるクラッシュ防止）
+        const fetchJson = async (url) => {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) return null;
+                return await res.json();
+            } catch (e) {
+                return null;
+            }
+        };
+
+        const [fDataRaw, oDataRaw, wDataRaw, iDataRaw] = await Promise.all([
+            fetchJson(`https://www.jma.go.jp/bosai/forecast/data/forecast/${code}.json`),
+            fetchJson(`https://www.jma.go.jp/bosai/forecast/data/overview_forecast/${code}.json`),
+            fetchJson(`https://www.jma.go.jp/bosai/warning/data/r8/${code}.json`),
+            fetchJson(`https://www.jma.go.jp/bosai/information/data/r8/information.json`)
         ]);
 
-        const fData = await fRes.json();
-        const oData = await oRes.json();
-        const wData = await wRes.json();
-        let iData = null;
-        if(iRes && iRes.ok) { iData = await iRes.json(); }
+        const fData = fDataRaw || [];
+        const oData = oDataRaw || {};
+        const wData = wDataRaw || {};
+        let iData = iDataRaw;
 
         if (fData[0]?.reportDatetime) document.getElementById('shortForecastTime').innerText = formatReportTime(fData[0].reportDatetime);
         if (fData.length > 1 && fData[1]?.reportDatetime) document.getElementById('weeklyForecastTime').innerText = formatReportTime(fData[1].reportDatetime);
@@ -1351,7 +1347,7 @@ async function updateArea(code, name, el) {
                     else if(dateStr === tomorrowStr) dayLabel = "明日";
                     
                     let wText = targetArea.weathers ? targetArea.weathers[index] : telopToText(targetArea.weatherCodes[index]);
-                    wText = formatWeatherText(wText); // ✨ ここでスマート整形関数を通す！
+                    wText = formatWeatherText(wText); 
                     
                     let waveText = targetArea.waves ? targetArea.waves[index] : null;
                     let windText = targetArea.winds ? targetArea.winds[index] : null; 
@@ -1392,7 +1388,7 @@ async function updateArea(code, name, el) {
                     const dateStr = time.split('T')[0];
                     initDay(dateStr);
                     const wCode = targetAreaW.weatherCodes[index];
-                    let wText = dailyData[dateStr].weatherText || formatWeatherText(telopToText(wCode)); // ✨ 週間予報のテキストも整形統一
+                    let wText = dailyData[dateStr].weatherText || formatWeatherText(telopToText(wCode));
                     if (!dailyData[dateStr].weatherCode) {
                         dailyData[dateStr] = Object.assign(dailyData[dateStr], {
                             dateText: `${parseInt(dateStr.split('-')[1])}/${parseInt(dateStr.split('-')[2])}`,
@@ -1449,7 +1445,6 @@ async function updateArea(code, name, el) {
                 const displayMax = d.maxTemp !== "-" ? `${d.maxTemp}℃` : "-";
                 const displayMin = d.minTemp !== "-" ? `${d.minTemp}℃` : "-";
 
-                // ✨ 風と波をまとめた表示を作るよ！
                 let marineHtml = "";
                 if (d.windText || d.waveText) {
                     let windFmt = d.windText ? formatWind(d.windText) : "";
@@ -1481,21 +1476,91 @@ async function updateArea(code, name, el) {
         document.getElementById('overview').innerText = oData.text || "概況なし";
 
         const alertBox = document.getElementById('alertContainer');
-        let alertHtml = wData.headlineText ? `<div class="warning-badge">📢 ${wData.headlineText}</div>` : "";
+        let alertHtml = "";
+        
+        // ✨ 深い階層も全て網羅し、headlineText と additions も駆使してタイトルを生成！
         let alerts = [];
+        let headline = wData.headlineText || ""; // 全体の見出しテキストを取得
+
         function findWarn(o) {
-            if(Array.isArray(o)) o.forEach(findWarn);
-            else if(typeof o === 'object' && o !== null) {
-                if(o.code && warnMap[o.code] && (o.status==="発表" || o.status==="継続")) alerts.push(warnMap[o.code]);
-                for(let k in o) findWarn(o[k]);
+            if (Array.isArray(o)) {
+                o.forEach(findWarn);
+            } else if (typeof o === 'object' && o !== null) {
+                // name があればそれを使い、なければ warnMap から引く
+                let alertName = o.name || warnMap[o.code];
+                if (alertName) {
+                    let status = String(o.status || "");
+                    if (status === "発表" || status === "継続" || status === "発表中") {
+                        let additions = (o.additions && Array.isArray(o.additions)) ? o.additions.join("・") : "";
+                        
+                        // 洪水を「氾濫」に置換
+                        alertName = alertName.replace("洪水", "氾濫");
+
+                        // ✨ headlineText に基づいて「大雨」を細分化するロジック
+                        if (alertName.includes("大雨")) {
+                            let isDosha = headline.includes("土砂");
+                            let isShinsui = headline.includes("浸水");
+                            
+                            if (isDosha && isShinsui) {
+                                alertName = alertName.replace("大雨", "大雨(土砂災害・浸水害)");
+                            } else if (isDosha) {
+                                alertName = alertName.replace("大雨", "大雨(土砂災害)");
+                            } else if (isShinsui) {
+                                alertName = alertName.replace("大雨", "大雨(浸水害)");
+                            }
+                        }
+                        
+                        // 雷・竜巻などの付加事項があればカッコ書きで追加
+                        if (additions) {
+                            alertName += `（${additions}）`;
+                        }
+                        
+                        alerts.push(alertName);
+                    }
+                }
+                for (let k in o) {
+                    if (k !== 'timeSeries') findWarn(o[k]); // 時間軸データは無視して現在出ているものだけを探す
+                }
             }
         }
         findWarn(wData);
-        alerts = [...new Set(alerts)];
-        if(alerts.length > 0) alerts.forEach(a => alertHtml += `<div class="${a.includes('警報')?'danger-badge':'warning-badge'}">${a}</div>`);
-        else if(!wData.headlineText) alertHtml = `<div class="safe-badge">🟢 現在、警報・注意報はありません</div>`;
+        alerts = [...new Set(alerts)]; // 重複を排除
+
+        let group1Alerts = []; // 大雨・土砂・洪水・高潮・氾濫・浸水
+        let group2Alerts = []; // それ以外
+        
+        alerts.forEach(a => {
+            if (a.includes("大雨") || a.includes("洪水") || a.includes("高潮") || a.includes("土砂") || a.includes("氾濫") || a.includes("浸水")) {
+                group1Alerts.push(a);
+            } else {
+                group2Alerts.push(a);
+            }
+        });
+
+        // ✨ 警告レベルごとの色分け判定
+        function getAlertTagClass(alertName) {
+            if (alertName.includes('特別警報')) return 'alert-tag-level5';
+            if (alertName.includes('危険警報')) return 'alert-tag-level4';
+            if (alertName.includes('警報')) return 'alert-tag-level3';
+            return 'alert-tag-level2'; // 注意報など
+        }
+
+        if (group1Alerts.length > 0 || group2Alerts.length > 0) {
+            if (group1Alerts.length > 0) {
+                alertHtml += `<div style="margin-bottom: 5px; font-weight: bold; color: #d9534f; border-bottom: 2px solid #f5c6cb; padding-bottom: 3px;">🌧️ 大雨・土砂・洪水・高潮・氾濫</div><div style="margin-bottom: 10px;">`;
+                group1Alerts.forEach(a => alertHtml += `<span class="${getAlertTagClass(a)}">${a}</span> `);
+                alertHtml += `</div>`;
+            }
+            if (group2Alerts.length > 0) {
+                alertHtml += `<div style="margin-bottom: 5px; font-weight: bold; color: #856404; border-bottom: 2px solid #ffeeba; padding-bottom: 3px;">⚠️ その他の警報・注意報</div><div>`;
+                group2Alerts.forEach(a => alertHtml += `<span class="${getAlertTagClass(a)}">${a}</span> `);
+                alertHtml += `</div>`;
+            }
+        } else {
+            alertHtml += `<div class="safe-badge">🟢 現在、警報・注意報はありません</div>`;
+        }
         alertBox.innerHTML = alertHtml;
-        document.getElementById('linkAlert').href = `https://www.jma.go.jp/bosai/warning/#area_type=offices&area_code=${code}&lang=ja`;
+        safeSetHref('linkAlert', `https://www.jma.go.jp/bosai/warning/#area_type=offices&area_code=${code}&lang=ja`);
 
         // ✨ 警報のプッシュ通知機能！
         if (localStorage.getItem('sorapoke_notify') === 'true' && Notification.permission === "granted") {
@@ -1513,22 +1578,23 @@ async function updateArea(code, name, el) {
         }
 
         const infoBox = document.getElementById('infoContainer');
-        if(iData) {
+        if(iData && Array.isArray(iData)) {
             const regionName = Object.keys(regionsData).find(key => regionsData[key].some(p => p.name === name)) || "";
 
+            // 各府県のタブに合わせてフィルタリング（大阪を選択したら大阪だけの情報を出す）
             let localInfos = iData.filter(info => {
-                const title = info.title || info.headTitle || "";
-                const office = info.publishingOffice || "";
+                const title = info.title || info.headTitle || info.controlTitle || "";
+                const office = info.publishingOffice || info.publisher || "";
                 
-                // ✨ 全般気象情報は広域すぎるため除外
                 if (title.includes("全般気象情報")) return false; 
                 
-                // ✨ 誤検知を防ぐため、他地域の名前が入っている場合は除外（例: 大阪の時に東京がヒットするのを防ぐ）
-                // ただし、タイトルや発信元がその地域そのものを指している場合は残す
                 const isTargetPref = title.includes(name) || office.includes(name) || title.includes(name + "府") || title.includes(name + "県") || title.includes(name + "都");
                 const isTargetRegion = regionName && (title.includes(regionName + "地方") || office.includes(regionName + "地方"));
                 
-                return isTargetPref || isTargetRegion;
+                const pCode = info.publishingOfficeCode || info.publisherCode || info.officeCode || info.areaCode;
+                const isCodeMatch = (pCode === code);
+                
+                return isTargetPref || isTargetRegion || isCodeMatch;
             });
 
             if (localInfos.length > 0) {
@@ -1552,7 +1618,6 @@ async function updateArea(code, name, el) {
                         let extT = info.title || info.headTitle || info.controlTitle || '気象情報';
                         let snoText = "";
                         
-                        // ✨ 第〇号の処理：すでにタイトルにあれば抽出、無ければserialNoから生成
                         let match = extT.match(/第([0-9０-９]+)号/);
                         if (match) {
                             extT = extT.replace(match[0], '').trim();
@@ -1562,33 +1627,24 @@ async function updateArea(code, name, el) {
                         }
                         extT += snoText; 
 
-                        // ✨ jsonNameを使ってURLを生成するロジックに改修！
-                        let targetJsonUrl = "";
+                        // ✨ タイトルをクリックしたら直接気象庁HPの本文ページへジャンプさせるURL作成
                         let fallbackUrl = `https://www.jma.go.jp/bosai/information/#area_type=offices&area_code=${code}`;
-                        
-                        if (info.jsonName) {
-                            // モーダルで表示するためのJSONのURL
-                            //targetJsonUrl = `https://www.jma.go.jp/bosai/information/data/denbun/${info.jsonName}.json`;
-                            // 万が一の時に飛ぶ気象庁公式のURL
-                            fallbackUrl = `https://www.jma.go.jp/bosai/information/#area_type=offices&info_id=${info.jsonName}&format=text&area_code=${code}`;
-                        } else if (info.url) {
-                            targetJsonUrl = info.url.startsWith('http') ? info.url : `https://www.jma.go.jp/bosai/information/${info.url}`;
-                        } else {
-                            // 予備ロジック
-                            let eventId = info.eventId || '';
-                            let infoKind = info.infoKind || '';
-                            let pCode = info.publishingOfficeCode || info.publisherCode || info.officeCode || code;
-                            let serialStr = (info.serialNo !== undefined && info.serialNo !== null && info.serialNo !== "") ? String(info.serialNo) : '0';
-                            if (eventId && infoKind) {
-                                targetJsonUrl = `https://www.jma.go.jp/bosai/information/data/info/${eventId}_${serialStr}_${infoKind}_${pCode}.json`;
-                            }
+                        let eventId = info.eventId || '';
+                        let infoKind = info.infoKind || '';
+                        let pCode = info.publishingOfficeCode || info.publisherCode || info.officeCode || code;
+                        let serialStr = (info.serialNo !== undefined && info.serialNo !== null && info.serialNo !== "") ? String(info.serialNo) : '0';
+
+                        if (eventId && infoKind) {
+                            let info_id = `${eventId}_${serialStr}_${infoKind}_${pCode}`;
+                            fallbackUrl = `https://www.jma.go.jp/bosai/information/#area_type=offices&info_id=${info_id}&format=text&area_code=${code}`;
+                        } else if (info.jsonName) {
+                            // eventIdがない過去の形式のデータへの対応
+                            let info_id = info.jsonName.replace('.json', '');
+                            fallbackUrl = `https://www.jma.go.jp/bosai/information/#area_type=offices&info_id=${info_id}&format=text&area_code=${code}`;
                         }
-                        
-                        const escapedTitle = extT.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                        const onClickAttr = targetJsonUrl ? `onclick="openWeatherInfoModal('${targetJsonUrl}', '${escapedTitle}', '${fallbackUrl}'); return false;"` : "";
 
                         const isL = index === 0;
-                        const item = `<a href="${fallbackUrl}" ${onClickAttr} target="_blank" style="text-decoration:none; color:inherit;">
+                        const item = `<a href="${fallbackUrl}" target="_blank" style="text-decoration:none; color:inherit;">
                             <div class="warning-badge" style="${isL?'background:#fff5f5; border-left-color:#e53935;':'background:#e3f2fd;'}">
                                 <div style="font-size:0.75rem; color:#666;">🕒 ${time}</div>
                                 <div style="font-weight:bold; display:flex; align-items:center; flex-wrap:wrap;">
